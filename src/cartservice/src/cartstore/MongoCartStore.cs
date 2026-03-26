@@ -3,17 +3,20 @@ using System.Linq;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Google.Protobuf;
-using Npgsql;
+using MongoDB.Driver;
+using MongoDB.Bson;
 
 namespace cartservice.cartstore
 {
-    public class PostgresCartStore : ICartStore
+    public class MongoCartStore : ICartStore
     {
-        private readonly string _connectionString;
+        private readonly IMongoCollection<BsonDocument> _cartsCollection;
 
-        public PostgresCartStore(string connectionString)
+        public MongoCartStore(string connectionString)
         {
-            _connectionString = connectionString;
+            var client = new MongoClient(connectionString);
+            var database = client.GetDatabase("shopdb");
+            _cartsCollection = database.GetCollection<BsonDocument>("carts");
         }
 
         public async Task AddItemAsync(string userId, string productId, int quantity)
@@ -22,20 +25,15 @@ namespace cartservice.cartstore
 
             try
             {
-                using var conn = new NpgsqlConnection(_connectionString);
-                await conn.OpenAsync();
-
                 Hipstershop.Cart cart = new Hipstershop.Cart { UserId = userId };
-                
-                using (var cmd = new NpgsqlCommand("SELECT cart_data FROM carts WHERE user_id = @userId", conn))
+
+                var filter = Builders<BsonDocument>.Filter.Eq("user_id", userId);
+                var existingDoc = await _cartsCollection.Find(filter).FirstOrDefaultAsync();
+
+                if (existingDoc != null && existingDoc.Contains("cart_data"))
                 {
-                    cmd.Parameters.AddWithValue("userId", userId);
-                    using var reader = await cmd.ExecuteReaderAsync();
-                    if (await reader.ReadAsync())
-                    {
-                        var bytes = (byte[])reader["cart_data"];
-                        cart = Hipstershop.Cart.Parser.ParseFrom(bytes);
-                    }
+                    var bytes = existingDoc["cart_data"].AsByteArray;
+                    cart = Hipstershop.Cart.Parser.ParseFrom(bytes);
                 }
 
                 var existingItem = cart.Items.SingleOrDefault(i => i.ProductId == productId);
@@ -48,14 +46,14 @@ namespace cartservice.cartstore
                     existingItem.Quantity += quantity;
                 }
 
-                using (var cmd = new NpgsqlCommand(@"
-                    INSERT INTO carts (user_id, cart_data) VALUES (@userId, @cartData)
-                    ON CONFLICT (user_id) DO UPDATE SET cart_data = EXCLUDED.cart_data", conn))
-                {
-                    cmd.Parameters.AddWithValue("userId", userId);
-                    cmd.Parameters.AddWithValue("cartData", cart.ToByteArray());
-                    await cmd.ExecuteNonQueryAsync();
-                }
+                await _cartsCollection.ReplaceOneAsync(
+                    filter,
+                    new BsonDocument
+                    {
+                        { "user_id", userId },
+                        { "cart_data", new BsonBinaryData(cart.ToByteArray()) }
+                    },
+                    new ReplaceOptions { IsUpsert = true });
             }
             catch (Exception ex)
             {
@@ -68,11 +66,8 @@ namespace cartservice.cartstore
             Console.WriteLine($"EmptyCartAsync called with userId={userId}");
             try
             {
-                using var conn = new NpgsqlConnection(_connectionString);
-                await conn.OpenAsync();
-                using var cmd = new NpgsqlCommand("DELETE FROM carts WHERE user_id = @userId", conn);
-                cmd.Parameters.AddWithValue("userId", userId);
-                await cmd.ExecuteNonQueryAsync();
+                var filter = Builders<BsonDocument>.Filter.Eq("user_id", userId);
+                await _cartsCollection.DeleteOneAsync(filter);
             }
             catch (Exception ex)
             {
@@ -85,16 +80,15 @@ namespace cartservice.cartstore
             Console.WriteLine($"GetCartAsync called with userId={userId}");
             try
             {
-                using var conn = new NpgsqlConnection(_connectionString);
-                await conn.OpenAsync();
-                using var cmd = new NpgsqlCommand("SELECT cart_data FROM carts WHERE user_id = @userId", conn);
-                cmd.Parameters.AddWithValue("userId", userId);
-                using var reader = await cmd.ExecuteReaderAsync();
-                if (await reader.ReadAsync())
+                var filter = Builders<BsonDocument>.Filter.Eq("user_id", userId);
+                var doc = await _cartsCollection.Find(filter).FirstOrDefaultAsync();
+
+                if (doc != null && doc.Contains("cart_data"))
                 {
-                    var bytes = (byte[])reader["cart_data"];
+                    var bytes = doc["cart_data"].AsByteArray;
                     return Hipstershop.Cart.Parser.ParseFrom(bytes);
                 }
+
                 return new Hipstershop.Cart { UserId = userId };
             }
             catch (Exception ex)
@@ -107,8 +101,9 @@ namespace cartservice.cartstore
         {
             try
             {
-                using var conn = new NpgsqlConnection(_connectionString);
-                conn.Open();
+                _cartsCollection.Database.Client
+                    .GetDatabase("admin")
+                    .RunCommand<BsonDocument>(new BsonDocument("ping", 1));
                 return true;
             }
             catch (Exception)

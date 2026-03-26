@@ -41,17 +41,13 @@ spec:
           value: "3550"
         - name: DISABLE_PROFILER
           value: "1"
-        - name: DB_HOST
-          value: "postgres"
-        - name: DB_USER
-          value: "postgres"
-        - name: DB_NAME
-          value: "shopdb"
-        - name: DB_PASSWORD
+        - name: MONGO_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: postgres-secret
-              key: POSTGRES_PASSWORD
+              name: mongodb-secret
+              key: MONGO_INITDB_ROOT_PASSWORD
+        - name: MONGO_CONNECTION_STRING
+          value: "mongodb://admin:$(MONGO_PASSWORD)@mongodb-0.mongodb-headless:27017,mongodb-1.mongodb-headless:27017,mongodb-2.mongodb-headless:27017/shopdb?replicaSet=rs0&authSource=admin"
         readinessProbe:
           initialDelaySeconds: 10
           periodSeconds: 5

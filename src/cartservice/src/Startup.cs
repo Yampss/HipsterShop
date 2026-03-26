@@ -30,16 +30,12 @@ namespace cartservice
             string spannerProjectId = Configuration["SPANNER_PROJECT"];
             string spannerConnectionString = Configuration["SPANNER_CONNECTION_STRING"];
             string alloyDBConnectionString = Configuration["ALLOYDB_PRIMARY_IP"];
-            string dbHost = Configuration["DB_HOST"];
-            string dbUser = Configuration["DB_USER"];
-            string dbPass = Configuration["DB_PASSWORD"];
-            string dbName = Configuration["DB_NAME"];
+            string mongoConnectionString = Configuration["MONGO_CONNECTION_STRING"];
 
-            if (!string.IsNullOrEmpty(dbHost))
+            if (!string.IsNullOrEmpty(mongoConnectionString))
             {
-                Console.WriteLine("Creating Postgres cart store");
-                string connectionString = $"Host={dbHost};Username={dbUser};Password={dbPass};Database={dbName}";
-                services.AddSingleton<ICartStore>(new PostgresCartStore(connectionString));
+                Console.WriteLine("Creating MongoDB cart store");
+                services.AddSingleton<ICartStore>(new MongoCartStore(mongoConnectionString));
             }
             else if (!string.IsNullOrEmpty(redisAddress))
             {

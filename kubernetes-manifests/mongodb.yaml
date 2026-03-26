@@ -1,0 +1,496 @@
+# =============================================================================
+# MongoDB Secret — Credentials for root user
+# =============================================================================
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mongodb-secret
+type: Opaque
+stringData:
+  MONGO_INITDB_ROOT_USERNAME: "admin"
+  MONGO_INITDB_ROOT_PASSWORD: "mongopassword"
+---
+# =============================================================================
+# PersistentVolumes — Static hostPath volumes for each replica
+# =============================================================================
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mongodb-pv-0
+  labels:
+    app: mongodb
+    podindex: "0"
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: mongodb-storage
+  hostPath:
+    path: /mnt/data/mongodb-0
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mongodb-pv-1
+  labels:
+    app: mongodb
+    podindex: "1"
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: mongodb-storage
+  hostPath:
+    path: /mnt/data/mongodb-1
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mongodb-pv-2
+  labels:
+    app: mongodb
+    podindex: "2"
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: mongodb-storage
+  hostPath:
+    path: /mnt/data/mongodb-2
+    type: DirectoryOrCreate
+---
+# =============================================================================
+# Headless Service — Enables stable DNS for StatefulSet pods
+# mongodb-0.mongodb-headless, mongodb-1.mongodb-headless, mongodb-2.mongodb-headless
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb-headless
+  labels:
+    app: mongodb
+spec:
+  clusterIP: None
+  selector:
+    app: mongodb
+  ports:
+    - name: mongodb
+      port: 27017
+      targetPort: 27017
+---
+# =============================================================================
+# ConfigMap — Dynamic replica set init scripts (ordinal-based, no hardcoded count)
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mongodb-scripts
+data:
+  # -------------------------------------------------------------------------
+  # Init script — Determines role from pod ordinal, prepares keyfile
+  # -------------------------------------------------------------------------
+  init-mongo.sh: |
+    #!/bin/bash
+    set -e
+
+    # Extract pod ordinal index from hostname (e.g., mongodb-0 → 0)
+    [[ $HOSTNAME =~ -([0-9]+)$ ]] || exit 1
+    ordinal=${BASH_REMATCH[1]}
+    echo "Pod ordinal: $ordinal"
+
+    # Write ordinal to shared volume for the sidecar to read
+    echo "$ordinal" > /data/config/ordinal
+
+    # Generate keyfile for internal replica set auth (same on all pods)
+    KEYFILE_PATH="/data/keyfile/mongodb-keyfile"
+    if [ ! -f "$KEYFILE_PATH" ]; then
+      echo "Generating MongoDB keyfile..."
+      openssl rand -base64 756 > "$KEYFILE_PATH"
+    fi
+    chmod 400 "$KEYFILE_PATH"
+    chown 999:999 "$KEYFILE_PATH"
+
+    echo "Init complete. Ordinal=$ordinal, keyfile ready."
+
+  # -------------------------------------------------------------------------
+  # Sidecar script — Pod-0 initiates RS; Pod-N adds itself to existing RS
+  # No hardcoded replica count; fully dynamic.
+  # -------------------------------------------------------------------------
+  rs-configure.sh: |
+    #!/bin/bash
+    set -e
+
+    # Read ordinal written by init container
+    ordinal=$(cat /data/config/ordinal)
+    SELF_HOST="$HOSTNAME.mongodb-headless:27017"
+
+    echo "Starting RS configuration for $HOSTNAME (ordinal=$ordinal)..."
+
+    # Wait for local mongod to accept connections
+    echo "Waiting for local mongod to be ready..."
+    until mongosh --quiet --eval "db.adminCommand('ping')" > /dev/null 2>&1; do
+      sleep 2
+    done
+    echo "Local mongod is ready."
+
+    if [ "$ordinal" -eq 0 ]; then
+      # =======================================================================
+      # PRIMARY path (ordinal 0): Initiate replica set with just this node
+      # =======================================================================
+
+      # Check if RS is already initialized
+      RS_STATUS=$(mongosh --quiet --eval "
+        try { rs.status().ok } catch(e) { 0 }
+      ")
+
+      if [ "$RS_STATUS" = "1" ]; then
+        echo "Replica set already initialized. Skipping."
+      else
+        echo "Initiating replica set rs0 with $SELF_HOST..."
+        mongosh --quiet --eval "
+          rs.initiate({
+            _id: 'rs0',
+            members: [
+              { _id: 0, host: '$SELF_HOST', priority: 2 }
+            ]
+          });
+        "
+
+        echo "Waiting for PRIMARY election..."
+        until mongosh --quiet --eval "rs.isMaster().ismaster" 2>/dev/null | grep -q "true"; do
+          echo "Waiting for $HOSTNAME to become PRIMARY..."
+          sleep 2
+        done
+        echo "$HOSTNAME is now PRIMARY."
+
+        # Create root user
+        echo "Creating root user..."
+        mongosh --quiet --eval "
+          use admin;
+          try {
+            db.createUser({
+              user: '${MONGO_INITDB_ROOT_USERNAME}',
+              pwd: '${MONGO_INITDB_ROOT_PASSWORD}',
+              roles: [{ role: 'root', db: 'admin' }]
+            });
+            print('Root user created.');
+          } catch(e) {
+            print('User may already exist: ' + e.message);
+          }
+        "
+
+        # Seed product data
+        echo "Seeding initial product data..."
+        mongosh --quiet --eval "
+          use shopdb;
+          if (db.products.countDocuments() === 0) {
+            db.products.insertMany([
+              {
+                _id: 'OLJCESPC7Z',
+                name: 'Sunglasses',
+                description: 'Add a modern touch to your outfits with these sleek aviator sunglasses.',
+                picture: '/static/img/products/sunglasses.jpg',
+                price_usd_currency_code: 'USD',
+                price_usd_units: NumberLong(19),
+                price_usd_nanos: 990000000,
+                categories: 'accessories'
+              },
+              {
+                _id: '66VCHSJNUP',
+                name: 'Tank Top',
+                description: 'Perfectly cropped cotton tank, with a scooped neckline.',
+                picture: '/static/img/products/tank-top.jpg',
+                price_usd_currency_code: 'USD',
+                price_usd_units: NumberLong(18),
+                price_usd_nanos: 990000000,
+                categories: 'clothing,tops'
+              },
+              {
+                _id: '1YMWWN1N4O',
+                name: 'Watch',
+                description: 'This gold-tone stainless steel watch will work with most of your outfits.',
+                picture: '/static/img/products/watch.jpg',
+                price_usd_currency_code: 'USD',
+                price_usd_units: NumberLong(109),
+                price_usd_nanos: 990000000,
+                categories: 'accessories'
+              },
+              {
+                _id: 'L9ECAV7KIM',
+                name: 'Loafers',
+                description: 'A neat addition to your summer wardrobe.',
+                picture: '/static/img/products/loafers.jpg',
+                price_usd_currency_code: 'USD',
+                price_usd_units: NumberLong(89),
+                price_usd_nanos: 990000000,
+                categories: 'footwear'
+              },
+              {
+                _id: '2ZYFJ3GM2N',
+                name: 'Hairdryer',
+                description: \"This lightweight hairdryer has 3 heat and speed settings. It's perfect for travel.\",
+                picture: '/static/img/products/hairdryer.jpg',
+                price_usd_currency_code: 'USD',
+                price_usd_units: NumberLong(24),
+                price_usd_nanos: 990000000,
+                categories: 'hair,beauty'
+              },
+              {
+                _id: '0PUK6V6EV0',
+                name: 'Candle Holder',
+                description: 'This small but intricate candle holder is an excellent gift.',
+                picture: '/static/img/products/candle-holder.jpg',
+                price_usd_currency_code: 'USD',
+                price_usd_units: NumberLong(18),
+                price_usd_nanos: 990000000,
+                categories: 'decor,home'
+              },
+              {
+                _id: 'LS4PSXUNUM',
+                name: 'Salt & Pepper Shakers',
+                description: 'Add some flavor to your kitchen.',
+                picture: '/static/img/products/salt-and-pepper-shakers.jpg',
+                price_usd_currency_code: 'USD',
+                price_usd_units: NumberLong(18),
+                price_usd_nanos: 490000000,
+                categories: 'kitchen'
+              },
+              {
+                _id: '9SIQT8TOJO',
+                name: 'Bamboo Glass Jar',
+                description: 'This bamboo glass jar can hold 57 oz (1.7 l) and is perfect for any kitchen.',
+                picture: '/static/img/products/bamboo-glass-jar.jpg',
+                price_usd_currency_code: 'USD',
+                price_usd_units: NumberLong(5),
+                price_usd_nanos: 490000000,
+                categories: 'kitchen'
+              },
+              {
+                _id: '6E92ZMYYFZ',
+                name: 'Mug',
+                description: 'A simple mug with a mustard interior.',
+                picture: '/static/img/products/mug.jpg',
+                price_usd_currency_code: 'USD',
+                price_usd_units: NumberLong(8),
+                price_usd_nanos: 990000000,
+                categories: 'kitchen'
+              }
+            ]);
+            print('Product data seeded successfully.');
+          } else {
+            print('Products already exist. Skipping seed.');
+          }
+        "
+      fi
+
+      echo "PRIMARY ($HOSTNAME) configuration complete."
+
+    else
+      # =======================================================================
+      # SECONDARY path (ordinal > 0): Add self to existing replica set
+      # =======================================================================
+      PRIMARY_HOST="mongodb-0.mongodb-headless:27017"
+
+      echo "Waiting for PRIMARY (mongodb-0) to be available..."
+      until mongosh --host "$PRIMARY_HOST" --quiet --eval "rs.isMaster().ismaster" 2>/dev/null | grep -q "true"; do
+        echo "PRIMARY not ready yet, retrying..."
+        sleep 3
+      done
+      echo "PRIMARY is available."
+
+      # Check if this node is already a member
+      IS_MEMBER=$(mongosh --host "$PRIMARY_HOST" --quiet --eval "
+        var members = rs.status().members.map(m => m.name);
+        members.indexOf('$SELF_HOST') >= 0 ? 'yes' : 'no';
+      ")
+
+      if [ "$IS_MEMBER" = "yes" ]; then
+        echo "$SELF_HOST is already a member of rs0. Skipping."
+      else
+        echo "Adding $SELF_HOST to replica set rs0..."
+        mongosh --host "$PRIMARY_HOST" --quiet --eval "rs.add('$SELF_HOST');"
+        echo "$SELF_HOST added to replica set."
+      fi
+
+      echo "SECONDARY ($HOSTNAME) configuration complete."
+    fi
+
+    echo "RS configuration finished. Sleeping..."
+    sleep infinity
+---
+# =============================================================================
+# StatefulSet — MongoDB Replica Cluster (rs0)
+# Roles determined dynamically via ordinal index (no hardcoded replica count)
+# =============================================================================
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongodb
+  labels:
+    app: mongodb
+spec:
+  serviceName: mongodb-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      terminationGracePeriodSeconds: 10
+      # -----------------------------------------------------------------------
+      # Init Container — Extract ordinal, prepare keyfile + config
+      # -----------------------------------------------------------------------
+      initContainers:
+      - name: init-mongo
+        image: mongo:7.0
+        command: ["bash", "/scripts/init-mongo.sh"]
+        volumeMounts:
+        - name: keyfile
+          mountPath: /data/keyfile
+        - name: config
+          mountPath: /data/config
+        - name: scripts
+          mountPath: /scripts
+      # -----------------------------------------------------------------------
+      # Main Container — MongoDB with Replica Set
+      # -----------------------------------------------------------------------
+      containers:
+      - name: mongodb
+        image: mongo:7.0
+        command:
+        - mongod
+        - "--replSet"
+        - rs0
+        - "--bind_ip_all"
+        - "--port"
+        - "27017"
+        ports:
+        - containerPort: 27017
+          name: mongodb
+        env:
+        - name: MONGO_INITDB_ROOT_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: MONGO_INITDB_ROOT_USERNAME
+        - name: MONGO_INITDB_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: MONGO_INITDB_ROOT_PASSWORD
+        volumeMounts:
+        - name: mongodb-data
+          mountPath: /data/db
+        - name: keyfile
+          mountPath: /data/keyfile
+          readOnly: true
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        livenessProbe:
+          exec:
+            command:
+            - mongosh
+            - --eval
+            - "db.adminCommand('ping')"
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 6
+        readinessProbe:
+          exec:
+            command:
+            - mongosh
+            - --eval
+            - "db.adminCommand('ping')"
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      # -----------------------------------------------------------------------
+      # Sidecar Container — Dynamic RS configuration (ordinal-based)
+      # Pod-0: rs.initiate() + seed data
+      # Pod-N: rs.add(self) to existing RS
+      # -----------------------------------------------------------------------
+      - name: mongo-sidecar
+        image: mongo:7.0
+        command: ["bash", "/scripts/rs-configure.sh"]
+        env:
+        - name: MONGO_INITDB_ROOT_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: MONGO_INITDB_ROOT_USERNAME
+        - name: MONGO_INITDB_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mongodb-secret
+              key: MONGO_INITDB_ROOT_PASSWORD
+        volumeMounts:
+        - name: scripts
+          mountPath: /scripts
+        - name: config
+          mountPath: /data/config
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "100m"
+            memory: "128Mi"
+      volumes:
+      - name: scripts
+        configMap:
+          name: mongodb-scripts
+          defaultMode: 0755
+      - name: keyfile
+        emptyDir: {}
+      - name: config
+        emptyDir: {}
+  # ---------------------------------------------------------------------------
+  # Volume Claim Templates — One PVC per pod, bound to static PVs
+  # ---------------------------------------------------------------------------
+  volumeClaimTemplates:
+  - metadata:
+      name: mongodb-data
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      storageClassName: mongodb-storage
+      resources:
+        requests:
+          storage: 1Gi
+---
+# =============================================================================
+# ClusterIP Service — Microservice-facing endpoint
+# Microservices connect to "mongodb:27017"
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb
+  labels:
+    app: mongodb
+spec:
+  type: ClusterIP
+  selector:
+    app: mongodb
+  ports:
+    - name: mongodb
+      port: 27017
+      targetPort: 27017

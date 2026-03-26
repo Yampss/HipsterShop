@@ -23,4 +23,4 @@ The Load Generator service is not part of the actual "application logic." Instea
 **A:** "The primary point is to demonstrate the power of **Horizontal Pod Autoscaling (HPA)**. With the load generator constantly spamming the frontend with computationally heavy cart checkouts, we can actually trigger real CPU limits. If we set an HPA threshold to 70% CPU, we can physically watch Kubernetes detect the spike and auto-provision 5, 10, or 20 additional frontend pods live, distributing the traffic flawlessly!"
 
 **Q: Which services are under the most pressure when this runs?**
-**A:** "Everything is hit, but the highest load falls heavily on the `Currency Service` (converting prices on every single catalog load), the `Frontend` (aggregating data), and now our new `Postgres Database` (handling continuous `INSERT` statements for random cart caching and order confirmations)."
+**A:** "Everything is hit, but the highest load falls heavily on the `Currency Service` (converting prices on every single catalog load), the `Frontend` (aggregating data), and now our `MongoDB Database` (handling continuous write operations for random cart caching and order confirmations)."
