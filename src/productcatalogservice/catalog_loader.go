@@ -11,28 +11,23 @@ package main
 import (
 	"bytes"
 	"context"
-	"fmt"
-	"net"
 	"os"
 	"strings"
+	"time"
 
-	"cloud.google.com/go/alloydbconn"
-	secretmanager "cloud.google.com/go/secretmanager/apiv1"
-	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
 	pb "github.com/GoogleCloudPlatform/microservices-demo/src/productcatalogservice/genproto"
 	"github.com/golang/protobuf/jsonpb"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 func loadCatalog(catalog *pb.ListProductsResponse) error {
 	catalogMutex.Lock()
 	defer catalogMutex.Unlock()
 
-	if os.Getenv("ALLOYDB_CLUSTER_NAME") != "" {
-		return loadCatalogFromAlloyDB(catalog)
-	}
-	if os.Getenv("DB_HOST") != "" {
-		return loadCatalogFromPostgres(catalog)
+	if os.Getenv("MONGO_CONNECTION_STRING") != "" {
+		return loadCatalogFromMongo(catalog)
 	}
 
 	return loadCatalogFromLocalFile(catalog)
@@ -56,157 +51,80 @@ func loadCatalogFromLocalFile(catalog *pb.ListProductsResponse) error {
 	return nil
 }
 
-func getSecretPayload(project, secret, version string) (string, error) {
-	ctx := context.Background()
-	client, err := secretmanager.NewClient(ctx)
-	if err != nil {
-		log.Warnf("failed to create SecretManager client: %v", err)
-		return "", err
-	}
-	defer client.Close()
-
-	req := &secretmanagerpb.AccessSecretVersionRequest{
-		Name: fmt.Sprintf("projects/%s/secrets/%s/versions/%s", project, secret, version),
-	}
-
-	// Call the API.
-	result, err := client.AccessSecretVersion(ctx, req)
-	if err != nil {
-		log.Warnf("failed to access SecretVersion: %v", err)
-		return "", err
-	}
-
-	return string(result.Payload.Data), nil
+// mongoProduct represents a product document in MongoDB
+type mongoProduct struct {
+	ID                   string   `bson:"id"`
+	Name                 string   `bson:"name"`
+	Description          string   `bson:"description"`
+	Picture              string   `bson:"picture"`
+	PriceUsdCurrencyCode string   `bson:"price_usd_currency_code"`
+	PriceUsdUnits        int64    `bson:"price_usd_units"`
+	PriceUsdNanos        int32    `bson:"price_usd_nanos"`
+	Categories           []string `bson:"categories"`
 }
 
-func loadCatalogFromAlloyDB(catalog *pb.ListProductsResponse) error {
-	log.Info("loading catalog from AlloyDB...")
+func loadCatalogFromMongo(catalog *pb.ListProductsResponse) error {
+	log.Info("loading catalog from MongoDB...")
 
-	projectID := os.Getenv("PROJECT_ID")
-	region := os.Getenv("REGION")
-	pgClusterName := os.Getenv("ALLOYDB_CLUSTER_NAME")
-	pgInstanceName := os.Getenv("ALLOYDB_INSTANCE_NAME")
-	pgDatabaseName := os.Getenv("ALLOYDB_DATABASE_NAME")
-	pgTableName := os.Getenv("ALLOYDB_TABLE_NAME")
-	pgSecretName := os.Getenv("ALLOYDB_SECRET_NAME")
+	connStr := os.Getenv("MONGO_CONNECTION_STRING")
 
-	pgPassword, err := getSecretPayload(projectID, pgSecretName, "latest")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	client, err := mongo.Connect(options.Client().ApplyURI(connStr))
 	if err != nil {
+		log.Warnf("failed to connect to MongoDB: %v", err)
+		return err
+	}
+	defer client.Disconnect(ctx)
+
+	// Verify connectivity
+	if err := client.Ping(ctx, nil); err != nil {
+		log.Warnf("failed to ping MongoDB: %v", err)
 		return err
 	}
 
-	dialer, err := alloydbconn.NewDialer(context.Background())
+	collection := client.Database("shopdb").Collection("products")
+	cursor, err := collection.Find(ctx, bson.D{})
 	if err != nil {
-		log.Warnf("failed to set-up dialer connection: %v", err)
+		log.Warnf("failed to query MongoDB: %v", err)
 		return err
 	}
-	cleanup := func() error { return dialer.Close() }
-	defer cleanup()
-
-	dsn := fmt.Sprintf(
-		"user=%s password=%s dbname=%s sslmode=disable",
-		"postgres", pgPassword, pgDatabaseName,
-	)
-
-	config, err := pgxpool.ParseConfig(dsn)
-	if err != nil {
-		log.Warnf("failed to parse DSN config: %v", err)
-		return err
-	}
-
-	pgInstanceURI := fmt.Sprintf("projects/%s/locations/%s/clusters/%s/instances/%s", projectID, region, pgClusterName, pgInstanceName)
-	config.ConnConfig.DialFunc = func(ctx context.Context, _ string, _ string) (net.Conn, error) {
-		return dialer.Dial(ctx, pgInstanceURI)
-	}
-
-	pool, err := pgxpool.NewWithConfig(context.Background(), config)
-	if err != nil {
-		log.Warnf("failed to set-up pgx pool: %v", err)
-		return err
-	}
-	defer pool.Close()
-
-	query := "SELECT id, name, description, picture, price_usd_currency_code, price_usd_units, price_usd_nanos, categories FROM " + pgTableName
-	rows, err := pool.Query(context.Background(), query)
-	if err != nil {
-		log.Warnf("failed to query database: %v", err)
-		return err
-	}
-	defer rows.Close()
+	defer cursor.Close(ctx)
 
 	catalog.Products = catalog.Products[:0]
-	for rows.Next() {
-		product := &pb.Product{}
-		product.PriceUsd = &pb.Money{}
-
-		var categories string
-		err = rows.Scan(&product.Id, &product.Name, &product.Description,
-			&product.Picture, &product.PriceUsd.CurrencyCode, &product.PriceUsd.Units,
-			&product.PriceUsd.Nanos, &categories)
-		if err != nil {
-			log.Warnf("failed to scan query result row: %v", err)
+	for cursor.Next(ctx) {
+		var mp mongoProduct
+		if err := cursor.Decode(&mp); err != nil {
+			log.Warnf("failed to decode MongoDB document: %v", err)
 			return err
 		}
-		categories = strings.ToLower(categories)
-		product.Categories = strings.Split(categories, ",")
 
+		// Convert categories to lowercase
+		for i, cat := range mp.Categories {
+			mp.Categories[i] = strings.ToLower(cat)
+		}
+
+		product := &pb.Product{
+			Id:          mp.ID,
+			Name:        mp.Name,
+			Description: mp.Description,
+			Picture:     mp.Picture,
+			PriceUsd: &pb.Money{
+				CurrencyCode: mp.PriceUsdCurrencyCode,
+				Units:        mp.PriceUsdUnits,
+				Nanos:        mp.PriceUsdNanos,
+			},
+			Categories: mp.Categories,
+		}
 		catalog.Products = append(catalog.Products, product)
 	}
 
-	log.Info("successfully parsed product catalog from AlloyDB")
-	return nil
-}
-
-func loadCatalogFromPostgres(catalog *pb.ListProductsResponse) error {
-	log.Info("loading catalog from PostgreSQL...")
-
-	dbHost := os.Getenv("DB_HOST")
-	dbUser := os.Getenv("DB_USER")
-	dbPassword := os.Getenv("DB_PASSWORD")
-	dbName := os.Getenv("DB_NAME")
-
-	dsn := fmt.Sprintf("host=%s port=5432 user=%s password=%s dbname=%s sslmode=disable", dbHost, dbUser, dbPassword, dbName)
-
-	config, err := pgxpool.ParseConfig(dsn)
-	if err != nil {
-		log.Warnf("failed to parse DSN config: %v", err)
+	if err := cursor.Err(); err != nil {
+		log.Warnf("cursor error: %v", err)
 		return err
 	}
 
-	pool, err := pgxpool.NewWithConfig(context.Background(), config)
-	if err != nil {
-		log.Warnf("failed to set-up pgx pool: %v", err)
-		return err
-	}
-	defer pool.Close()
-
-	query := "SELECT id, name, description, picture, price_usd_currency_code, price_usd_units, price_usd_nanos, categories FROM products"
-	rows, err := pool.Query(context.Background(), query)
-	if err != nil {
-		log.Warnf("failed to query database: %v", err)
-		return err
-	}
-	defer rows.Close()
-
-	catalog.Products = catalog.Products[:0]
-	for rows.Next() {
-		product := &pb.Product{}
-		product.PriceUsd = &pb.Money{}
-
-		var categories string
-		err = rows.Scan(&product.Id, &product.Name, &product.Description,
-			&product.Picture, &product.PriceUsd.CurrencyCode, &product.PriceUsd.Units,
-			&product.PriceUsd.Nanos, &categories)
-		if err != nil {
-			log.Warnf("failed to scan query result row: %v", err)
-			return err
-		}
-		categories = strings.ToLower(categories)
-		product.Categories = strings.Split(categories, ",")
-
-		catalog.Products = append(catalog.Products, product)
-	}
-
-	log.Info("successfully parsed product catalog from PostgreSQL")
+	log.Infof("successfully loaded %d products from MongoDB", len(catalog.Products))
 	return nil
 }

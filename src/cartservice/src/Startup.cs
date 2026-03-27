@@ -26,41 +26,35 @@ namespace cartservice
         
         public void ConfigureServices(IServiceCollection services)
         {
-            string redisAddress = Configuration["REDIS_ADDR"];
-            string spannerProjectId = Configuration["SPANNER_PROJECT"];
-            string spannerConnectionString = Configuration["SPANNER_CONNECTION_STRING"];
-            string alloyDBConnectionString = Configuration["ALLOYDB_PRIMARY_IP"];
             string mongoConnectionString = Configuration["MONGO_CONNECTION_STRING"];
+            string redisAddress = Configuration["REDIS_ADDR"];
 
-            if (!string.IsNullOrEmpty(mongoConnectionString))
+            if (string.IsNullOrEmpty(mongoConnectionString))
             {
-                Console.WriteLine("Creating MongoDB cart store");
-                services.AddSingleton<ICartStore>(new MongoCartStore(mongoConnectionString));
+                throw new InvalidOperationException("MONGO_CONNECTION_STRING environment variable is required.");
             }
-            else if (!string.IsNullOrEmpty(redisAddress))
+
+            // MongoDB is always the primary store
+            var mongoStore = new MongoCartStore(mongoConnectionString);
+            Console.WriteLine("MongoDB cart store created (primary)");
+
+            if (!string.IsNullOrEmpty(redisAddress))
             {
+                // Redis available — use as write-through cache in front of MongoDB
+                Console.WriteLine($"Redis cache enabled at {redisAddress}");
                 services.AddStackExchangeRedisCache(options =>
                 {
                     options.Configuration = redisAddress;
                 });
+                services.AddSingleton<MongoCartStore>(mongoStore);
                 services.AddSingleton<ICartStore, RedisCartStore>();
-            }
-            else if (!string.IsNullOrEmpty(spannerProjectId) || !string.IsNullOrEmpty(spannerConnectionString))
-            {
-                services.AddSingleton<ICartStore, SpannerCartStore>();
-            }
-            else if (!string.IsNullOrEmpty(alloyDBConnectionString))
-            {
-                Console.WriteLine("Creating AlloyDB cart store");
-                services.AddSingleton<ICartStore, AlloyDBCartStore>();
             }
             else
             {
-                Console.WriteLine("Redis cache host(hostname+port) was not specified. Starting a cart service using in memory store");
-                services.AddDistributedMemoryCache();
-                services.AddSingleton<ICartStore, RedisCartStore>();
+                // No Redis — use MongoDB directly
+                Console.WriteLine("No Redis configured, using MongoDB directly");
+                services.AddSingleton<ICartStore>(mongoStore);
             }
-
 
             services.AddGrpc();
 

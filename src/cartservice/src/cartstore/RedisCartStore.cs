@@ -11,10 +11,12 @@ namespace cartservice.cartstore
     public class RedisCartStore : ICartStore
     {
         private readonly IDistributedCache _cache;
+        private readonly MongoCartStore _mongoStore;
 
-        public RedisCartStore(IDistributedCache cache)
+        public RedisCartStore(IDistributedCache cache, MongoCartStore mongoStore)
         {
             _cache = cache;
+            _mongoStore = mongoStore;
         }
 
         public async Task AddItemAsync(string userId, string productId, int quantity)
@@ -23,27 +25,11 @@ namespace cartservice.cartstore
 
             try
             {
-                Hipstershop.Cart cart;
-                var value = await _cache.GetAsync(userId);
-                if (value == null)
-                {
-                    cart = new Hipstershop.Cart();
-                    cart.UserId = userId;
-                    cart.Items.Add(new Hipstershop.CartItem { ProductId = productId, Quantity = quantity });
-                }
-                else
-                {
-                    cart = Hipstershop.Cart.Parser.ParseFrom(value);
-                    var existingItem = cart.Items.SingleOrDefault(i => i.ProductId == productId);
-                    if (existingItem == null)
-                    {
-                        cart.Items.Add(new Hipstershop.CartItem { ProductId = productId, Quantity = quantity });
-                    }
-                    else
-                    {
-                        existingItem.Quantity += quantity;
-                    }
-                }
+                // Write-through: persist to MongoDB first
+                await _mongoStore.AddItemAsync(userId, productId, quantity);
+
+                // Then update the Redis cache
+                var cart = await _mongoStore.GetCartAsync(userId);
                 await _cache.SetAsync(userId, cart.ToByteArray());
             }
             catch (Exception ex)
@@ -58,8 +44,11 @@ namespace cartservice.cartstore
 
             try
             {
-                var cart = new Hipstershop.Cart();
-                await _cache.SetAsync(userId, cart.ToByteArray());
+                // Delete from MongoDB
+                await _mongoStore.EmptyCartAsync(userId);
+
+                // Invalidate Redis cache
+                await _cache.RemoveAsync(userId);
             }
             catch (Exception ex)
             {
@@ -73,14 +62,21 @@ namespace cartservice.cartstore
 
             try
             {
+                // Try Redis cache first
                 var value = await _cache.GetAsync(userId);
-
                 if (value != null)
                 {
                     return Hipstershop.Cart.Parser.ParseFrom(value);
                 }
 
-                return new Hipstershop.Cart();
+                // Cache miss — load from MongoDB and cache it
+                var cart = await _mongoStore.GetCartAsync(userId);
+                if (cart.Items.Count > 0)
+                {
+                    await _cache.SetAsync(userId, cart.ToByteArray());
+                }
+
+                return cart;
             }
             catch (Exception ex)
             {
@@ -92,7 +88,7 @@ namespace cartservice.cartstore
         {
             try
             {
-                return true;
+                return _mongoStore.Ping();
             }
             catch (Exception)
             {
