@@ -105,6 +105,7 @@ data:
 
     echo "Pod: $HOSTNAME, Ordinal: $ordinal"
 
+    # Wait for local mongod
     echo "Waiting for local mongod..."
     until mongosh --quiet --eval "db.adminCommand('ping')" 2>/dev/null; do
       sleep 2
@@ -126,62 +127,45 @@ data:
             members: [{ _id: 0, host: '${SELF_HOST}', priority: 2 }]
           });
         "
+
+        echo "Waiting for PRIMARY election..."
+        until mongosh --quiet --eval "rs.isMaster().ismaster" 2>/dev/null | grep -q true; do
+          sleep 2
+        done
+        echo "Elected as PRIMARY"
+
+        echo "Creating user..."
+        mongosh --quiet --eval "
+          use admin;
+          try {
+            db.createUser({
+              user: '${MONGO_INITDB_ROOT_USERNAME}',
+              pwd: '${MONGO_INITDB_ROOT_PASSWORD}',
+              roles: [{ role: 'root', db: 'admin' }]
+            });
+          } catch(e) { print('User exists'); }
+        "
+
+        echo "Seeding data..."
+        mongosh --quiet --eval "
+          use shopdb;
+          if (db.products.countDocuments() === 0) {
+            db.products.insertMany([
+              { _id: 'OLJCESPC7Z', name: 'Sunglasses', price: 19.99, categories: ['accessories'] },
+              { _id: '66VCHSJNUP', name: 'Tank Top', price: 18.99, categories: ['clothing'] },
+              { _id: '1YMWWN1N4O', name: 'Watch', price: 109.99, categories: ['accessories'] },
+              { _id: 'L9ECAV7KIM', name: 'Loafers', price: 89.99, categories: ['footwear'] },
+              { _id: '2ZYFJ3GM2N', name: 'Hairdryer', price: 24.99, categories: ['beauty'] },
+              { _id: '0PUK6V6EV0', name: 'Candle Holder', price: 18.99, categories: ['home'] },
+              { _id: 'LS4PSXUNUM', name: 'Salt Shakers', price: 18.49, categories: ['kitchen'] },
+              { _id: '9SIQT8TOJO', name: 'Bamboo Jar', price: 5.49, categories: ['kitchen'] },
+              { _id: '6E92ZMYYFZ', name: 'Mug', price: 8.99, categories: ['kitchen'] }
+            ]);
+            print('Data seeded');
+          }
+        "
       fi
-
-      echo "Waiting for PRIMARY election..."
-      for i in $(seq 1 30); do
-        IS_PRIMARY=$(mongosh --quiet --eval "rs.isMaster().ismaster" 2>/dev/null || echo "false")
-        if [ "$IS_PRIMARY" = "true" ]; then
-          echo "Elected as PRIMARY"
-          break
-        fi
-        echo "Waiting for PRIMARY... attempt $i"
-        sleep 3
-      done
-
-      sleep 5
-
-      echo "Creating user..."
-      mongosh admin --quiet --eval "
-        try {
-          db.createUser({
-            user: '${MONGO_INITDB_ROOT_USERNAME}',
-            pwd: '${MONGO_INITDB_ROOT_PASSWORD}',
-            roles: [{ role: 'root', db: 'admin' }]
-          });
-          print('User created successfully');
-        } catch(e) {
-          print('User note: ' + e.message);
-        }
-      "
-
-      echo "Verifying user..."
-      mongosh admin --quiet --eval "
-        var users = db.getUsers();
-        print('Users found: ' + users.users.length);
-      "
-
-      echo "Seeding data..."
-      mongosh shopdb --quiet --eval "
-        if (db.products.countDocuments() === 0) {
-          db.products.insertMany([
-            { _id: 'OLJCESPC7Z', name: 'Sunglasses', price: 19.99, categories: ['accessories'] },
-            { _id: '66VCHSJNUP', name: 'Tank Top', price: 18.99, categories: ['clothing'] },
-            { _id: '1YMWWN1N4O', name: 'Watch', price: 109.99, categories: ['accessories'] },
-            { _id: 'L9ECAV7KIM', name: 'Loafers', price: 89.99, categories: ['footwear'] },
-            { _id: '2ZYFJ3GM2N', name: 'Hairdryer', price: 24.99, categories: ['beauty'] },
-            { _id: '0PUK6V6EV0', name: 'Candle Holder', price: 18.99, categories: ['home'] },
-            { _id: 'LS4PSXUNUM', name: 'Salt Shakers', price: 18.49, categories: ['kitchen'] },
-            { _id: '9SIQT8TOJO', name: 'Bamboo Jar', price: 5.49, categories: ['kitchen'] },
-            { _id: '6E92ZMYYFZ', name: 'Mug', price: 8.99, categories: ['kitchen'] }
-          ]);
-          print('Products seeded successfully');
-        } else {
-          print('Products already exist');
-        }
-      "
-
-      echo "PRIMARY setup complete"
+      echo "PRIMARY ready"
 
     else
       echo "=== SECONDARY Configuration ==="
@@ -209,7 +193,7 @@ data:
     sleep infinity
 ---
 # =============================================================================
-# StatefulSet
+# StatefulSet — No Resource Limits
 # =============================================================================
 apiVersion: apps/v1
 kind: StatefulSet
@@ -231,7 +215,7 @@ spec:
 
       initContainers:
       - name: init-mongo
-        image: mongo:5.0
+        image: mongo:7.0
         command: ["bash", "/scripts/init-mongo.sh"]
         securityContext:
           runAsUser: 0
@@ -245,7 +229,7 @@ spec:
 
       containers:
       - name: mongodb
-        image: mongo:5.0
+        image: mongo:7.0
         args:
         - "--replSet"
         - "rs0"
@@ -270,7 +254,7 @@ spec:
           timeoutSeconds: 5
 
       - name: mongo-sidecar
-        image: mongo:5.0
+        image: mongo:7.0
         command: ["bash", "/scripts/rs-configure.sh"]
         env:
         - name: MONGO_INITDB_ROOT_USERNAME

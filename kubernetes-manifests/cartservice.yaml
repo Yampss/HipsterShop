@@ -29,7 +29,7 @@ spec:
               - ALL
           privileged: false
           readOnlyRootFilesystem: true
-        image: vinaykumarkondoju08/cartservice-hipster:v1
+        image: vinaykumarkondoju08/cartservice-hipster:v2
         ports:
         - containerPort: 7070
         env:
@@ -43,7 +43,7 @@ spec:
               name: mongodb-secret
               key: MONGO_INITDB_ROOT_PASSWORD
         - name: MONGO_CONNECTION_STRING
-          value: "mongodb://admin:$(MONGO_PASSWORD)@mongodb-0.mongodb-headless:27017,mongodb-1.mongodb-headless:27017,mongodb-2.mongodb-headless:27017/shopdb?replicaSet=rs0&authSource=admin"
+          value: "mongodb://admin:$(MONGO_PASSWORD)@mongodb-0.mongodb-headless:27017,mongodb-1.mongodb-headless:27017,mongodb-2.mongodb-headless:27017/shopdb?replicaSet=rs0&authSource=admin&authMechanism=SCRAM-SHA-256"
         resources:
           requests:
             cpu: 200m
@@ -52,13 +52,18 @@ spec:
             cpu: 300m
             memory: 512Mi
         readinessProbe:
-          initialDelaySeconds: 15
-          grpc:
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 5
+          tcpSocket:
             port: 7070
         livenessProbe:
-          initialDelaySeconds: 15
-          periodSeconds: 10
-          grpc:
+          initialDelaySeconds: 60
+          periodSeconds: 20
+          timeoutSeconds: 5
+          failureThreshold: 5
+          tcpSocket:
             port: 7070
 ---
 apiVersion: v1
