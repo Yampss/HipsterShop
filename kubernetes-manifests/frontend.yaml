@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: server
-          image: cazzzzz/kgw-frontend-hipster:latest
+          image: cazzzzz/authdbfix-frontend-hipster:latest
           ports:
           - containerPort: 8080
           readinessProbe:
