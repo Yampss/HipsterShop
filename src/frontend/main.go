@@ -47,14 +47,8 @@ var (
 type ctxKeySessionID struct{}
 
 type frontendServer struct {
-	productCatalogSvcAddr string
-	currencySvcAddr       string
-	cartSvcAddr           string
-	recommendationSvcAddr string
-	checkoutSvcAddr       string
-	shippingSvcAddr       string
-	adSvcAddr             string
-	collectorAddr         string
+	gatewaySvcAddr string
+	collectorAddr  string
 }
 
 func main() {
@@ -96,13 +90,7 @@ func main() {
 		srvPort = os.Getenv("PORT")
 	}
 	addr := os.Getenv("LISTEN_ADDR")
-	mustMapEnv(&svc.productCatalogSvcAddr, "PRODUCT_CATALOG_SERVICE_ADDR")
-	mustMapEnv(&svc.currencySvcAddr, "CURRENCY_SERVICE_ADDR")
-	mustMapEnv(&svc.cartSvcAddr, "CART_SERVICE_ADDR")
-	mustMapEnv(&svc.recommendationSvcAddr, "RECOMMENDATION_SERVICE_ADDR")
-	mustMapEnv(&svc.checkoutSvcAddr, "CHECKOUT_SERVICE_ADDR")
-	mustMapEnv(&svc.shippingSvcAddr, "SHIPPING_SERVICE_ADDR")
-	mustMapEnv(&svc.adSvcAddr, "AD_SERVICE_ADDR")
+	mustMapEnv(&svc.gatewaySvcAddr, "GATEWAY_ADDR")
 
 	r := mux.NewRouter()
 	r.HandleFunc(baseUrl+"/", svc.homeHandler).Methods(http.MethodGet, http.MethodHead)

@@ -409,7 +409,7 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	var order PlaceOrderResponse
-	if err := postJSON(fmt.Sprintf("http://%s/checkout", fe.checkoutSvcAddr), checkoutReq, &order); err != nil {
+	if err := postJSON(fmt.Sprintf("http://%s/api/checkout", fe.gatewaySvcAddr), checkoutReq, &order); err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "failed to complete the order"), http.StatusInternalServerError)
 		return
 	}

@@ -62,7 +62,7 @@ type getSupportedCurrenciesResponse struct {
 
 func (fe *frontendServer) getCurrencies(ctx context.Context) ([]string, error) {
 	var resp getSupportedCurrenciesResponse
-	if err := getJSON(fmt.Sprintf("http://%s/currencies", fe.currencySvcAddr), &resp); err != nil {
+	if err := getJSON(fmt.Sprintf("http://%s/api/currency/currencies", fe.gatewaySvcAddr), &resp); err != nil {
 		return nil, err
 	}
 	var out []string
@@ -80,7 +80,7 @@ type listProductsResponse struct {
 
 func (fe *frontendServer) getProducts(ctx context.Context) ([]*Product, error) {
 	var resp listProductsResponse
-	if err := getJSON(fmt.Sprintf("http://%s/products", fe.productCatalogSvcAddr), &resp); err != nil {
+	if err := getJSON(fmt.Sprintf("http://%s/api/products", fe.gatewaySvcAddr), &resp); err != nil {
 		return nil, err
 	}
 	return resp.Products, nil
@@ -88,7 +88,7 @@ func (fe *frontendServer) getProducts(ctx context.Context) ([]*Product, error) {
 
 func (fe *frontendServer) getProduct(ctx context.Context, id string) (*Product, error) {
 	var resp Product
-	if err := getJSON(fmt.Sprintf("http://%s/products/%s", fe.productCatalogSvcAddr, id), &resp); err != nil {
+	if err := getJSON(fmt.Sprintf("http://%s/api/products/%s", fe.gatewaySvcAddr, id), &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
@@ -102,7 +102,7 @@ type cartResponse struct {
 func (fe *frontendServer) getCart(ctx context.Context, userID string) ([]*CartItem, error) {
 	reqBody := map[string]string{"userId": userID}
 	var resp cartResponse
-	if err := postJSON(fmt.Sprintf("http://%s/cart/get", fe.cartSvcAddr), reqBody, &resp); err != nil {
+	if err := postJSON(fmt.Sprintf("http://%s/api/cart/get", fe.gatewaySvcAddr), reqBody, &resp); err != nil {
 		return nil, err
 	}
 	return resp.Items, nil
@@ -110,7 +110,7 @@ func (fe *frontendServer) getCart(ctx context.Context, userID string) ([]*CartIt
 
 func (fe *frontendServer) emptyCart(ctx context.Context, userID string) error {
 	reqBody := map[string]string{"userId": userID}
-	return postJSON(fmt.Sprintf("http://%s/cart/empty", fe.cartSvcAddr), reqBody, nil)
+	return postJSON(fmt.Sprintf("http://%s/api/cart/empty", fe.gatewaySvcAddr), reqBody, nil)
 }
 
 func (fe *frontendServer) insertCart(ctx context.Context, userID, productID string, quantity int32) error {
@@ -121,7 +121,7 @@ func (fe *frontendServer) insertCart(ctx context.Context, userID, productID stri
 			"quantity":  quantity,
 		},
 	}
-	return postJSON(fmt.Sprintf("http://%s/cart/add", fe.cartSvcAddr), reqBody, nil)
+	return postJSON(fmt.Sprintf("http://%s/api/cart/add", fe.gatewaySvcAddr), reqBody, nil)
 }
 
 func (fe *frontendServer) convertCurrency(ctx context.Context, m *money.Money, currency string) (*money.Money, error) {
@@ -133,7 +133,7 @@ func (fe *frontendServer) convertCurrency(ctx context.Context, m *money.Money, c
 		"toCode": currency,
 	}
 	var result money.Money
-	if err := postJSON(fmt.Sprintf("http://%s/convert", fe.currencySvcAddr), reqBody, &result); err != nil {
+	if err := postJSON(fmt.Sprintf("http://%s/api/currency/convert", fe.gatewaySvcAddr), reqBody, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
@@ -149,7 +149,7 @@ func (fe *frontendServer) getShippingQuote(ctx context.Context, items []*CartIte
 		"items":   items,
 	}
 	var resp getQuoteResponseFE
-	if err := postJSON(fmt.Sprintf("http://%s/quote", fe.shippingSvcAddr), reqBody, &resp); err != nil {
+	if err := postJSON(fmt.Sprintf("http://%s/api/shipping/quote", fe.gatewaySvcAddr), reqBody, &resp); err != nil {
 		return nil, err
 	}
 	localized, err := fe.convertCurrency(ctx, resp.CostUsd, currency)
@@ -166,7 +166,7 @@ func (fe *frontendServer) getRecommendations(ctx context.Context, userID string,
 		"productIds": productIDs,
 	}
 	var resp listRecommendationsResponse
-	if err := postJSON(fmt.Sprintf("http://%s/recommendations", fe.recommendationSvcAddr), reqBody, &resp); err != nil {
+	if err := postJSON(fmt.Sprintf("http://%s/api/recommendations", fe.gatewaySvcAddr), reqBody, &resp); err != nil {
 		return nil, err
 	}
 	out := make([]*Product, len(resp.ProductIds))
@@ -192,7 +192,7 @@ func (fe *frontendServer) getAd(ctx context.Context, ctxKeys []string) ([]*Ad, e
 		"context_keys": ctxKeys,
 	}
 	var resp adResponse
-	if err := postJSON(fmt.Sprintf("http://%s/ads", fe.adSvcAddr), reqBody, &resp); err != nil {
+	if err := postJSON(fmt.Sprintf("http://%s/api/ads", fe.gatewaySvcAddr), reqBody, &resp); err != nil {
 		return nil, errors.Wrap(err, "failed to get ads")
 	}
 	return resp.Ads, nil
