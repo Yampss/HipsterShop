@@ -1,8 +1,10 @@
 using System;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using cartservice.cartstore;
 using OpenTelemetry.Trace;
@@ -51,11 +53,15 @@ namespace cartservice
             }
 
             services.AddControllers();
+            services.AddHealthChecks();
 
-            services.AddOpenTelemetry()
-                .WithTracing(builder => builder
-                    .AddAspNetCoreInstrumentation()
-                    .AddOtlpExporter());
+            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISABLE_TRACING")))
+            {
+                services.AddOpenTelemetry()
+                    .WithTracing(builder => builder
+                        .AddAspNetCoreInstrumentation()
+                        .AddOtlpExporter());
+            }
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -65,6 +71,7 @@ namespace cartservice
                 app.UseDeveloperExceptionPage();
             }
 
+            app.UseHealthChecks("/_healthz");
             app.UseRouting();
 
             app.UseEndpoints(endpoints =>

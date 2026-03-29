@@ -37,10 +37,5 @@ namespace cartservice.controllers
             return Ok(new {});
         }
 
-        [HttpGet("/_healthz")]
-        public IActionResult HealthCheck()
-        {
-            return _cartStore.Ping() ? Ok("ok") : StatusCode(503, "not serving");
-        }
     }
 }

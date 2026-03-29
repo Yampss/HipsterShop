@@ -6,8 +6,6 @@ COPY . .
 RUN dotnet publish cartservice.csproj \
     -p:PublishSingleFile=true \
     --self-contained true \
-    -p:PublishTrimmed=true \
-    -p:TrimMode=full \
     -c release \
     -o /cartservice
 FROM mcr.microsoft.com/dotnet/runtime-deps:10.0.0-noble-chiseled@sha256:b857c8cb8d929183cfe4c6dd9994abba92a2639dd2dbaf06005379f815991604
