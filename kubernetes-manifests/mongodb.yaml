@@ -134,6 +134,17 @@ spec:
       containers:
       - name: mongo-init
         image: mongo:7.0
+        env:
+        - name: MONGO_INITDB_ROOT_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: mongo-secret
+              key: MONGO_ROOT_USERNAME
+        - name: MONGO_INITDB_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mongo-secret
+              key: MONGO_ROOT_PASSWORD
         command:
         - bash
         - -c
@@ -141,38 +152,41 @@ spec:
           set -e
           echo "Waiting for mongodb-0..."
           until mongosh --host mongodb-0.mongo-headless:27017 \
-            -u admin -p mongopassword --authenticationDatabase admin \
+            -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin \
             --eval "db.adminCommand('ping')" > /dev/null 2>&1; do
             sleep 3
           done
           echo "mongodb-0 ready. Waiting for mongodb-1..."
           until mongosh --host mongodb-1.mongo-headless:27017 \
-            -u admin -p mongopassword --authenticationDatabase admin \
+            -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin \
             --eval "db.adminCommand('ping')" > /dev/null 2>&1; do
             sleep 3
           done
           echo "mongodb-1 ready. Waiting for mongodb-2..."
           until mongosh --host mongodb-2.mongo-headless:27017 \
-            -u admin -p mongopassword --authenticationDatabase admin \
+            -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin \
             --eval "db.adminCommand('ping')" > /dev/null 2>&1; do
             sleep 3
           done
           echo "All MongoDB pods ready. Initiating replica set..."
           mongosh --host mongodb-0.mongo-headless:27017 \
-            -u admin -p mongopassword --authenticationDatabase admin \
+            -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin \
             --eval "
-              var status = rs.status();
-              if (status.ok === 1) {
-                print('Replica set already initialized. Skipping.');
-              } else {
-                rs.initiate({
-                  _id: 'rs0',
-                  members: [
-                    { _id: 0, host: 'mongodb-0.mongo-headless:27017', priority: 2 },
-                    { _id: 1, host: 'mongodb-1.mongo-headless:27017', priority: 1 },
-                    { _id: 2, host: 'mongodb-2.mongo-headless:27017', priority: 1 }
-                  ]
-                });
-                print('Replica set initiated successfully.');
+              try {
+                if (rs.status().ok === 1) {
+                  print('Replica set already initialized. Skipping.');
+                  quit(0);
+                }
+              } catch (e) {
+                print('Replica set not initialized yet. Proceeding with rs.initiate().');
               }
+              rs.initiate({
+                _id: 'rs0',
+                members: [
+                  { _id: 0, host: 'mongodb-0.mongo-headless:27017', priority: 2 },
+                  { _id: 1, host: 'mongodb-1.mongo-headless:27017', priority: 1 },
+                  { _id: 2, host: 'mongodb-2.mongo-headless:27017', priority: 1 }
+                ]
+              });
+              print('Replica set initiated successfully.');
             "

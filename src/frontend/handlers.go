@@ -248,6 +248,11 @@ func (fe *frontendServer) productHandler(w http.ResponseWriter, r *http.Request)
 
 func (fe *frontendServer) addToCartHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+	userID := authenticatedUserID(r)
+	if userID == "" {
+		renderHTTPError(log, r, w, errors.New("authentication required"), http.StatusUnauthorized)
+		return
+	}
 	quantity, _ := strconv.ParseUint(r.FormValue("quantity"), 10, 32)
 	productID := r.FormValue("product_id")
 	payload := validator.AddToCartPayload{
@@ -266,7 +271,7 @@ func (fe *frontendServer) addToCartHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if err := fe.insertCart(r.Context(), sessionID(r), p.Id, int32(payload.Quantity)); err != nil {
+	if err := fe.insertCart(r.Context(), userID, p.Id, int32(payload.Quantity)); err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "failed to add to cart"), http.StatusInternalServerError)
 		return
 	}
@@ -276,9 +281,14 @@ func (fe *frontendServer) addToCartHandler(w http.ResponseWriter, r *http.Reques
 
 func (fe *frontendServer) emptyCartHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+	userID := authenticatedUserID(r)
+	if userID == "" {
+		renderHTTPError(log, r, w, errors.New("authentication required"), http.StatusUnauthorized)
+		return
+	}
 	log.Debug("emptying cart")
 
-	if err := fe.emptyCart(r.Context(), sessionID(r)); err != nil {
+	if err := fe.emptyCart(r.Context(), userID); err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "failed to empty cart"), http.StatusInternalServerError)
 		return
 	}
@@ -288,19 +298,24 @@ func (fe *frontendServer) emptyCartHandler(w http.ResponseWriter, r *http.Reques
 
 func (fe *frontendServer) viewCartHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+	userID := authenticatedUserID(r)
+	if userID == "" {
+		renderHTTPError(log, r, w, errors.New("authentication required"), http.StatusUnauthorized)
+		return
+	}
 	log.Debug("view user cart")
 	currencies, err := fe.getCurrencies(r.Context())
 	if err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve currencies"), http.StatusInternalServerError)
 		return
 	}
-	cart, err := fe.getCart(r.Context(), sessionID(r))
+	cart, err := fe.getCart(r.Context(), userID)
 	if err != nil {
 		renderHTTPError(log, r, w, errors.Wrap(err, "could not retrieve cart"), http.StatusInternalServerError)
 		return
 	}
 
-	recommendations, err := fe.getRecommendations(r.Context(), sessionID(r), cartIDs(cart))
+	recommendations, err := fe.getRecommendations(r.Context(), userID, cartIDs(cart))
 	if err != nil {
 		log.WithField("error", err).Warn("failed to get product recommendations")
 	}
@@ -356,6 +371,11 @@ func (fe *frontendServer) viewCartHandler(w http.ResponseWriter, r *http.Request
 
 func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Request) {
 	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+	userID := authenticatedUserID(r)
+	if userID == "" {
+		renderHTTPError(log, r, w, errors.New("authentication required"), http.StatusUnauthorized)
+		return
+	}
 	log.Debug("placing order")
 
 	var (
@@ -397,7 +417,7 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 			"creditCardExpirationYear":  int32(payload.CcYear),
 			"creditCardCvv":             int32(payload.CcCVV),
 		},
-		"userId":       sessionID(r),
+		"userId":       userID,
 		"userCurrency": currentCurrency(r),
 		"address": map[string]interface{}{
 			"streetAddress": payload.StreetAddress,
@@ -415,7 +435,7 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 	}
 	log.WithField("order", order.Order.OrderId).Info("order placed")
 
-	recommendations, _ := fe.getRecommendations(r.Context(), sessionID(r), nil)
+	recommendations, _ := fe.getRecommendations(r.Context(), userID, nil)
 
 	totalPaid := *order.Order.ShippingCost
 	for _, v := range order.Order.Items {
@@ -437,6 +457,96 @@ func (fe *frontendServer) placeOrderHandler(w http.ResponseWriter, r *http.Reque
 		"recommendations": recommendations,
 	})); err != nil {
 		log.Println(err)
+	}
+}
+
+func (fe *frontendServer) loginHandler(w http.ResponseWriter, r *http.Request) {
+	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+	if isAuthenticated(r) {
+		w.Header().Set("Location", baseUrl+"/")
+		w.WriteHeader(http.StatusFound)
+		return
+	}
+	if err := templates.ExecuteTemplate(w, "login", injectCommonTemplateData(r, map[string]interface{}{})); err != nil {
+		log.Println(err)
+	}
+}
+
+func (fe *frontendServer) loginPostHandler(w http.ResponseWriter, r *http.Request) {
+	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+	email := strings.TrimSpace(r.FormValue("email"))
+	password := r.FormValue("password")
+
+	if email == "" || password == "" {
+		if err := templates.ExecuteTemplate(w, "login", injectCommonTemplateData(r, map[string]interface{}{
+			"error": "Email and password are required",
+		})); err != nil {
+			log.Println(err)
+		}
+		return
+	}
+
+	authCookies, err := fe.authLogin(r.Context(), email, password)
+	if err != nil {
+		if err := templates.ExecuteTemplate(w, "login", injectCommonTemplateData(r, map[string]interface{}{
+			"error": err.Error(),
+		})); err != nil {
+			log.Println(err)
+		}
+		return
+	}
+	forwardAuthTokenCookie(w, authCookies)
+	w.Header().Set("Location", baseUrl+"/cart")
+	w.WriteHeader(http.StatusFound)
+}
+
+func (fe *frontendServer) signupHandler(w http.ResponseWriter, r *http.Request) {
+	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+	if isAuthenticated(r) {
+		w.Header().Set("Location", baseUrl+"/")
+		w.WriteHeader(http.StatusFound)
+		return
+	}
+	if err := templates.ExecuteTemplate(w, "signup", injectCommonTemplateData(r, map[string]interface{}{})); err != nil {
+		log.Println(err)
+	}
+}
+
+func (fe *frontendServer) signupPostHandler(w http.ResponseWriter, r *http.Request) {
+	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+	name := strings.TrimSpace(r.FormValue("name"))
+	email := strings.TrimSpace(r.FormValue("email"))
+	password := r.FormValue("password")
+
+	if email == "" || password == "" {
+		if err := templates.ExecuteTemplate(w, "signup", injectCommonTemplateData(r, map[string]interface{}{
+			"error": "Email and password are required",
+		})); err != nil {
+			log.Println(err)
+		}
+		return
+	}
+
+	authCookies, err := fe.authSignup(r.Context(), name, email, password)
+	if err != nil {
+		if err := templates.ExecuteTemplate(w, "signup", injectCommonTemplateData(r, map[string]interface{}{
+			"error": err.Error(),
+		})); err != nil {
+			log.Println(err)
+		}
+		return
+	}
+	forwardAuthTokenCookie(w, authCookies)
+	w.Header().Set("Location", baseUrl+"/cart")
+	w.WriteHeader(http.StatusFound)
+}
+
+func forwardAuthTokenCookie(w http.ResponseWriter, cookies []*http.Cookie) {
+	for _, cookie := range cookies {
+		if cookie.Name == "auth_token" {
+			http.SetCookie(w, cookie)
+			return
+		}
 	}
 }
 
@@ -533,6 +643,8 @@ func injectCommonTemplateData(r *http.Request, payload map[string]interface{}) m
 	data := map[string]interface{}{
 		"session_id":        sessionID(r),
 		"request_id":        r.Context().Value(ctxKeyRequestID{}),
+		"is_authenticated":  isAuthenticated(r),
+		"user_email":        authenticatedUserEmail(r),
 		"user_currency":     currentCurrency(r),
 		"platform_css":      plat.css,
 		"platform_name":     plat.provider,
@@ -565,6 +677,39 @@ func sessionID(r *http.Request) string {
 		return v.(string)
 	}
 	return ""
+}
+
+func isAuthenticated(r *http.Request) bool {
+	v := r.Context().Value(ctxKeyAuthenticated{})
+	if v == nil {
+		return false
+	}
+	b, ok := v.(bool)
+	return ok && b
+}
+
+func authenticatedUserID(r *http.Request) string {
+	v := r.Context().Value(ctxKeyUserID{})
+	if v == nil {
+		return ""
+	}
+	userID, ok := v.(string)
+	if !ok {
+		return ""
+	}
+	return userID
+}
+
+func authenticatedUserEmail(r *http.Request) string {
+	v := r.Context().Value(ctxKeyUserEmail{})
+	if v == nil {
+		return ""
+	}
+	email, ok := v.(string)
+	if !ok {
+		return ""
+	}
+	return email
 }
 
 func cartIDs(c []*CartItem) []string {

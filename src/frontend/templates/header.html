@@ -59,6 +59,14 @@
                         <span class="cart-size-circle">{{$.cart_size}}</span>
                         {{ end }}
                     </a>
+
+                    {{ if $.is_authenticated }}
+                    <span class="ml-3" style="font-size: 14px; color: #333333;">{{ $.user_email }}</span>
+                    <a href="{{ $.baseUrl }}/logout" class="ml-3" style="font-size: 14px; color: #111111; text-decoration: none;">Logout</a>
+                    {{ else }}
+                    <a href="{{ $.baseUrl }}/login" class="ml-3" style="font-size: 14px; color: #111111; text-decoration: none;">Login</a>
+                    <a href="{{ $.baseUrl }}/signup" class="ml-3" style="font-size: 14px; color: #111111; text-decoration: none;">Sign Up</a>
+                    {{ end }}
                 </div>
             </div>
         </div>

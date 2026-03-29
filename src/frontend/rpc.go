@@ -12,6 +12,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -24,6 +25,18 @@ const (
 )
 
 var httpClient = &http.Client{Timeout: 10 * time.Second}
+
+type apiError struct {
+	Status  int
+	Message string
+}
+
+func (e *apiError) Error() string {
+	if e.Message == "" {
+		return fmt.Sprintf("request failed with status %d", e.Status)
+	}
+	return e.Message
+}
 
 func postJSON(url string, body interface{}, result interface{}) error {
 	data, err := json.Marshal(body)
@@ -42,6 +55,71 @@ func postJSON(url string, body interface{}, result interface{}) error {
 		return json.NewDecoder(resp.Body).Decode(result)
 	}
 	return nil
+}
+
+func postJSONWithCookies(ctx context.Context, url string, body interface{}) ([]*http.Cookie, error) {
+	data, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		return nil, decodeAPIError(resp)
+	}
+
+	_, _ = io.Copy(io.Discard, resp.Body)
+	return resp.Cookies(), nil
+}
+
+func decodeAPIError(resp *http.Response) error {
+	var payload map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err == nil {
+		if msg, ok := payload["error"].(string); ok && msg != "" {
+			return &apiError{Status: resp.StatusCode, Message: msg}
+		}
+	}
+	return &apiError{Status: resp.StatusCode, Message: http.StatusText(resp.StatusCode)}
+}
+
+func (fe *frontendServer) authLogin(ctx context.Context, email, password string) ([]*http.Cookie, error) {
+	reqBody := map[string]string{"email": email, "password": password}
+	cookies, err := postJSONWithCookies(ctx, fmt.Sprintf("http://%s/api/auth/login", fe.gatewaySvcAddr), reqBody)
+	if err != nil {
+		if apiErr, ok := err.(*apiError); ok {
+			if apiErr.Status == http.StatusUnauthorized {
+				return nil, fmt.Errorf("Invalid email or password")
+			}
+			return nil, fmt.Errorf(apiErr.Message)
+		}
+		return nil, err
+	}
+	return cookies, nil
+}
+
+func (fe *frontendServer) authSignup(ctx context.Context, name, email, password string) ([]*http.Cookie, error) {
+	reqBody := map[string]string{"name": name, "email": email, "password": password}
+	cookies, err := postJSONWithCookies(ctx, fmt.Sprintf("http://%s/api/auth/signup", fe.gatewaySvcAddr), reqBody)
+	if err != nil {
+		if apiErr, ok := err.(*apiError); ok {
+			if apiErr.Status == http.StatusConflict {
+				return nil, fmt.Errorf("Email already registered")
+			}
+			return nil, fmt.Errorf(apiErr.Message)
+		}
+		return nil, err
+	}
+	return cookies, nil
 }
 
 func getJSON(url string, result interface{}) error {

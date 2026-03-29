@@ -73,6 +73,20 @@ spec:
     - matches:
         - path:
             type: Exact
+            value: /login
+      backendRefs:
+        - name: frontend
+          port: 80
+    - matches:
+        - path:
+            type: Exact
+            value: /signup
+      backendRefs:
+        - name: frontend
+          port: 80
+    - matches:
+        - path:
+            type: Exact
             value: /logout
       backendRefs:
         - name: frontend
@@ -323,52 +337,14 @@ spec:
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: email-route
-  
-  labels:
-    app: emailservice
-spec:
-  parentRefs:
-    - name: hipstershop-gateway
-  rules:
-    - matches:
-        - path:
-            type: Exact
-            value: /api/email/send-confirmation
-      filters:
-        - type: URLRewrite
-          urlRewrite:
-            path:
-              type: ReplaceFullPath
-              replaceFullPath: /send-confirmation
-      backendRefs:
-        - name: emailservice
-          port: 8080
-
----
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
   name: auth-route
+
   labels:
     app: authservice
 spec:
   parentRefs:
     - name: hipstershop-gateway
   rules:
-    - matches:
-        - path:
-            type: Exact
-            value: /api/auth/signup
-      filters:
-        - type: URLRewrite
-          urlRewrite:
-            path:
-              type: ReplaceFullPath
-              replaceFullPath: /signup
-      backendRefs:
-        - name: authservice
-          port: 8081
     - matches:
         - path:
             type: Exact
@@ -379,6 +355,19 @@ spec:
             path:
               type: ReplaceFullPath
               replaceFullPath: /login
+      backendRefs:
+        - name: authservice
+          port: 8081
+    - matches:
+        - path:
+            type: Exact
+            value: /api/auth/signup
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplaceFullPath
+              replaceFullPath: /signup
       backendRefs:
         - name: authservice
           port: 8081
@@ -408,3 +397,29 @@ spec:
       backendRefs:
         - name: authservice
           port: 8081
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: email-route
+  
+  labels:
+    app: emailservice
+spec:
+  parentRefs:
+    - name: hipstershop-gateway
+  rules:
+    - matches:
+        - path:
+            type: Exact
+            value: /api/email/send-confirmation
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplaceFullPath
+              replaceFullPath: /send-confirmation
+      backendRefs:
+        - name: emailservice
+          port: 8080

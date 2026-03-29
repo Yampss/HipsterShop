@@ -49,6 +49,7 @@ type ctxKeySessionID struct{}
 type frontendServer struct {
 	gatewaySvcAddr string
 	collectorAddr  string
+	jwtSecret      string
 }
 
 func main() {
@@ -91,16 +92,21 @@ func main() {
 	}
 	addr := os.Getenv("LISTEN_ADDR")
 	mustMapEnv(&svc.gatewaySvcAddr, "GATEWAY_ADDR")
+	svc.jwtSecret = os.Getenv("JWT_SECRET")
 
 	r := mux.NewRouter()
 	r.HandleFunc(baseUrl+"/", svc.homeHandler).Methods(http.MethodGet, http.MethodHead)
 	r.HandleFunc(baseUrl+"/product/{id}", svc.productHandler).Methods(http.MethodGet, http.MethodHead)
-	r.HandleFunc(baseUrl+"/cart", svc.viewCartHandler).Methods(http.MethodGet, http.MethodHead)
-	r.HandleFunc(baseUrl+"/cart", svc.addToCartHandler).Methods(http.MethodPost)
-	r.HandleFunc(baseUrl+"/cart/empty", svc.emptyCartHandler).Methods(http.MethodPost)
+	r.Handle(baseUrl+"/cart", requireLogin(http.HandlerFunc(svc.viewCartHandler))).Methods(http.MethodGet, http.MethodHead)
+	r.Handle(baseUrl+"/cart", requireLogin(http.HandlerFunc(svc.addToCartHandler))).Methods(http.MethodPost)
+	r.Handle(baseUrl+"/cart/empty", requireLogin(http.HandlerFunc(svc.emptyCartHandler))).Methods(http.MethodPost)
 	r.HandleFunc(baseUrl+"/setCurrency", svc.setCurrencyHandler).Methods(http.MethodPost)
+	r.HandleFunc(baseUrl+"/login", svc.loginHandler).Methods(http.MethodGet)
+	r.HandleFunc(baseUrl+"/login", svc.loginPostHandler).Methods(http.MethodPost)
+	r.HandleFunc(baseUrl+"/signup", svc.signupHandler).Methods(http.MethodGet)
+	r.HandleFunc(baseUrl+"/signup", svc.signupPostHandler).Methods(http.MethodPost)
 	r.HandleFunc(baseUrl+"/logout", svc.logoutHandler).Methods(http.MethodGet)
-	r.HandleFunc(baseUrl+"/cart/checkout", svc.placeOrderHandler).Methods(http.MethodPost)
+	r.Handle(baseUrl+"/cart/checkout", requireLogin(http.HandlerFunc(svc.placeOrderHandler))).Methods(http.MethodPost)
 
 	r.PathPrefix(baseUrl + "/static/").Handler(http.StripPrefix(baseUrl+"/static/", http.FileServer(http.Dir("./static/"))))
 	r.HandleFunc(baseUrl+"/robots.txt", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "User-agent: *\nDisallow: /") })
@@ -109,7 +115,7 @@ func main() {
 
 	var handler http.Handler = r
 	handler = &logHandler{log: log, next: handler}     // add logging
-	handler = ensureSessionID(handler)                 // add session ID
+	handler = ensureSessionAndAuth(handler, svc.jwtSecret, log) // add session and auth context
 	handler = otelhttp.NewHandler(handler, "frontend") // add OTel tracing
 
 	log.Infof("starting server on %s:%s", addr, srvPort)
