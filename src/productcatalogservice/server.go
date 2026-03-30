@@ -39,12 +39,13 @@ type Money struct {
 }
 
 type Product struct {
-	Id          string   `json:"id"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Picture     string   `json:"picture"`
-	PriceUsd    *Money   `json:"priceUsd"`
-	Categories  []string `json:"categories"`
+	Id          string                 `json:"id"`
+	Name        string                 `json:"name"`
+	Description string                 `json:"description"`
+	Picture     string                 `json:"picture"`
+	PriceUsd    *Money                 `json:"priceUsd"`
+	Categories  []string               `json:"categories"`
+	Details     map[string]interface{} `json:"details,omitempty"`
 }
 
 type ListProductsResponse struct {

@@ -31,12 +31,12 @@ type assistantChatResponse struct {
 }
 
 type assistantContextProduct struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Price       string   `json:"price"`
-	Categories  []string `json:"categories,omitempty"`
-	Picture     string   `json:"picture,omitempty"`
+	ID          string                 `json:"id"`
+	Name        string                 `json:"name"`
+	Description string                 `json:"description"`
+	Price       string                 `json:"price"`
+	Categories  []string               `json:"categories,omitempty"`
+	Details     map[string]interface{} `json:"details,omitempty"`
 }
 
 type assistantContextPack struct {
@@ -153,11 +153,14 @@ func callGeminiAssistant(ctx context.Context, apiKey, model string, product *Pro
 		return "", fmt.Errorf("marshal assistant context: %w", err)
 	}
 
-	systemInstruction := "You are a shopping assistant for Hipster Shop. Use only explicit facts from the context JSON. " +
-		"Do not infer material, comfort, climate suitability, durability, or fit unless directly stated. " +
-		"If the question needs unavailable details, say exactly: 'I don't have enough information in the product data to answer that precisely.' " +
-		"Then ask one short follow-up question. Keep response plain text only (no markdown, no bullets, no bold markers). " +
-		"Keep responses brief and factual."
+	systemInstruction := "You are a friendly, knowledgeable shopping assistant for Hipster Shop. " +
+		"You are given a context JSON with product details including materials, colors, sizing, care, and more. " +
+		"Use the context JSON as your primary source of truth. " +
+		"You may also use reasonable general product knowledge to give helpful answers when the context provides enough context to infer it — for example, if a material is listed, you can comment on its feel or durability. " +
+		"Answer questions about fit, use case, climate suitability, gift suitability, comparisons to related products, and care — being genuinely helpful. " +
+		"If something is truly unknown (e.g. a color not listed), say what IS available and offer to help with something else. " +
+		"Do not make up specifications like exact wattage, dimensions, or weight unless they are in the context JSON. " +
+		"Keep responses concise, warm, and conversational. Plain text only — no markdown, no bullets, no bold markers."
 
 	userPrompt := fmt.Sprintf("Context JSON:\n%s\n\nCustomer question:\n%s", string(contextJSON), question)
 	payload := geminiRequest{
@@ -171,8 +174,8 @@ func callGeminiAssistant(ctx context.Context, apiKey, model string, product *Pro
 			},
 		},
 		GenerationConfig: geminiGenerationConfig{
-			Temperature:     0.25,
-			MaxOutputTokens: 260,
+			Temperature:     0.5,
+			MaxOutputTokens: 350,
 		},
 	}
 
@@ -269,7 +272,7 @@ func toAssistantContextProduct(p *Product) assistantContextProduct {
 		Description: p.Description,
 		Price:       formatProductPrice(p.PriceUsd),
 		Categories:  p.Categories,
-		Picture:     p.Picture,
+		Details:     p.Details,
 	}
 }
 
