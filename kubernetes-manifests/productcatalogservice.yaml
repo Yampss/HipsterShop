@@ -45,13 +45,14 @@ spec:
         - name: MONGO_URI
           value: "mongodb://$(MONGO_USERNAME):$(MONGO_PASSWORD)@mongodb-0.mongo-headless:27017,mongodb-1.mongo-headless:27017,mongodb-2.mongo-headless:27017/catalog_db?replicaSet=rs0&authSource=catalog_db&authMechanism=SCRAM-SHA-256"
         readinessProbe:
-          initialDelaySeconds: 10
+          initialDelaySeconds: 20
           periodSeconds: 5
           httpGet:
             path: "/_healthz"
             port: 3550
         livenessProbe:
-          initialDelaySeconds: 10
+          initialDelaySeconds: 40
+          failureThreshold: 6
           periodSeconds: 5
           httpGet:
             path: "/_healthz"

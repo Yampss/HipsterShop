@@ -272,15 +272,24 @@ spec:
               }
             } catch (e) {
               print('Replica set not initialized yet. Proceeding with rs.initiate().');
-              rs.initiate({
-                _id: 'rs0',
-                members: [
-                  { _id: 0, host: 'mongodb-0.mongo-headless:27017', priority: 2 },
-                  { _id: 1, host: 'mongodb-1.mongo-headless:27017', priority: 1 },
-                  { _id: 2, host: 'mongodb-2.mongo-headless:27017', priority: 1 }
-                ]
-              });
-              print('Replica set initiated successfully.');
+              try {
+                rs.initiate({
+                  _id: 'rs0',
+                  members: [
+                    { _id: 0, host: 'mongodb-0.mongo-headless:27017', priority: 2 },
+                    { _id: 1, host: 'mongodb-1.mongo-headless:27017', priority: 1 },
+                    { _id: 2, host: 'mongodb-2.mongo-headless:27017', priority: 1 }
+                  ]
+                });
+                print('Replica set initiated successfully.');
+              } catch (initErr) {
+                var msg = (initErr && initErr.message) ? initErr.message : '';
+                if (msg.indexOf('already initialized') >= 0) {
+                  print('Replica set already initialized by another actor. Continuing.');
+                } else {
+                  throw initErr;
+                }
+              }
             }
           "
 
