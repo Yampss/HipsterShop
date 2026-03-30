@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: server
-          image: cazzzzz/trf-frontend-hipster:latest
+          image: cazzzzz/trf-frontend-hipster:v1
           ports:
           - containerPort: 8080
           readinessProbe:

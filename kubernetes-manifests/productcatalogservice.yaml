@@ -16,7 +16,7 @@ spec:
       terminationGracePeriodSeconds: 5
       containers:
       - name: server
-        image: cazzzzz/trf-productcatalogservice-hipster:latest
+        image: cazzzzz/trf-productcatalogservice-hipster:v1
         ports:
         - containerPort: 3550
         env:
