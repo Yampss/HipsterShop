@@ -15,16 +15,46 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"cloud.google.com/go/alloydbconn"
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+type mongoMoney struct {
+	CurrencyCode string `bson:"currencyCode"`
+	Units        int64  `bson:"units"`
+	Nanos        int32  `bson:"nanos"`
+}
+
+type mongoProductDocument struct {
+	ID          string    `bson:"id"`
+	Name        string    `bson:"name"`
+	Description string    `bson:"description"`
+	Picture     string    `bson:"picture"`
+	PriceUSD    mongoMoney `bson:"priceUsd"`
+	Categories  []string  `bson:"categories"`
+}
 
 func loadCatalog(catalog *ListProductsResponse) error {
 	catalogMutex.Lock()
 	defer catalogMutex.Unlock()
+
+	if os.Getenv("MONGO_URI") != "" {
+		if err := loadCatalogFromMongoDB(catalog); err != nil {
+			if strings.EqualFold(os.Getenv("PRODUCTS_FALLBACK_LOCAL"), "true") {
+				log.Warnf("failed to load catalog from MongoDB, falling back to products.json: %v", err)
+				return loadCatalogFromLocalFile(catalog)
+			}
+			return err
+		}
+		return nil
+	}
 
 	if os.Getenv("ALLOYDB_CLUSTER_NAME") != "" {
 		return loadCatalogFromAlloyDB(catalog)
@@ -34,6 +64,83 @@ func loadCatalog(catalog *ListProductsResponse) error {
 	}
 
 	return loadCatalogFromLocalFile(catalog)
+}
+
+func loadCatalogFromMongoDB(catalog *ListProductsResponse) error {
+	log.Info("loading catalog from MongoDB...")
+
+	mongoURI := os.Getenv("MONGO_URI")
+	databaseName := os.Getenv("MONGO_DATABASE")
+	if databaseName == "" {
+		databaseName = "catalog_db"
+	}
+	collectionName := os.Getenv("MONGO_PRODUCTS_COLLECTION")
+	if collectionName == "" {
+		collectionName = "products"
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
+	if err != nil {
+		log.Warnf("failed to connect to MongoDB: %v", err)
+		return err
+	}
+	defer func() {
+		disconnectCtx, disconnectCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer disconnectCancel()
+		_ = client.Disconnect(disconnectCtx)
+	}()
+
+	if err := client.Ping(ctx, nil); err != nil {
+		log.Warnf("mongodb ping failed: %v", err)
+		return err
+	}
+
+	coll := client.Database(databaseName).Collection(collectionName)
+	cursor, err := coll.Find(ctx, bson.M{})
+	if err != nil {
+		log.Warnf("failed to query products collection: %v", err)
+		return err
+	}
+	defer cursor.Close(ctx)
+
+	products := make([]*Product, 0)
+	for cursor.Next(ctx) {
+		var doc mongoProductDocument
+		if err := cursor.Decode(&doc); err != nil {
+			log.Warnf("failed to decode mongo product document: %v", err)
+			return err
+		}
+
+		p := &Product{
+			Id:          doc.ID,
+			Name:        doc.Name,
+			Description: doc.Description,
+			Picture:     doc.Picture,
+			PriceUsd: &Money{
+				CurrencyCode: doc.PriceUSD.CurrencyCode,
+				Units:        doc.PriceUSD.Units,
+				Nanos:        doc.PriceUSD.Nanos,
+			},
+			Categories: doc.Categories,
+		}
+		products = append(products, p)
+	}
+
+	if err := cursor.Err(); err != nil {
+		log.Warnf("error iterating mongo cursor: %v", err)
+		return err
+	}
+
+	if len(products) == 0 {
+		return fmt.Errorf("mongodb products collection %s.%s is empty", databaseName, collectionName)
+	}
+
+	catalog.Products = products
+	log.Infof("successfully loaded %d products from MongoDB (%s.%s)", len(products), databaseName, collectionName)
+	return nil
 }
 
 func loadCatalogFromLocalFile(catalog *ListProductsResponse) error {

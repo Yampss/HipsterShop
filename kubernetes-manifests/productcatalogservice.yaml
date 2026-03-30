@@ -16,7 +16,7 @@ spec:
       terminationGracePeriodSeconds: 5
       containers:
       - name: server
-        image: cazzzzz/tr-productcatalogservice-hipster:latest
+        image: cazzzzz/trf-productcatalogservice-hipster:latest
         ports:
         - containerPort: 3550
         env:
@@ -29,15 +29,21 @@ spec:
         - name: MONGO_USERNAME
           valueFrom:
             secretKeyRef:
-              name: mongo-secret
-              key: MONGO_ROOT_USERNAME
+              name: mongo-app-secret
+              key: CATALOG_MONGO_USERNAME
         - name: MONGO_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: mongo-secret
-              key: MONGO_ROOT_PASSWORD
+              name: mongo-app-secret
+              key: CATALOG_MONGO_PASSWORD
+        - name: MONGO_DATABASE
+          value: "catalog_db"
+        - name: MONGO_PRODUCTS_COLLECTION
+          value: "products"
+        - name: PRODUCTS_FALLBACK_LOCAL
+          value: "true"
         - name: MONGO_URI
-          value: "mongodb://$(MONGO_USERNAME):$(MONGO_PASSWORD)@mongodb-0.mongo-headless:27017,mongodb-1.mongo-headless:27017,mongodb-2.mongo-headless:27017/shopdb?replicaSet=rs0&authSource=admin"
+          value: "mongodb://$(MONGO_USERNAME):$(MONGO_PASSWORD)@mongodb-0.mongo-headless:27017,mongodb-1.mongo-headless:27017,mongodb-2.mongo-headless:27017/catalog_db?replicaSet=rs0&authSource=catalog_db&authMechanism=SCRAM-SHA-256"
         readinessProbe:
           initialDelaySeconds: 10
           periodSeconds: 5

@@ -10,6 +10,7 @@ require (
 	cloud.google.com/go/secretmanager v1.14.7
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/sirupsen/logrus v1.9.4
+	go.mongodb.org/mongo-driver v1.15.0
 )
 
 require (

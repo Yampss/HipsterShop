@@ -142,7 +142,7 @@
         summaryEl.textContent = reply || 'AI summary is not available right now.';
       })
       .catch(() => {
-        summaryEl.textContent = 'AI summary is currently unavailable. You can still use the regular product details above.';
+        summaryEl.textContent = 'AI summary is currently unavailable. You can still shop using product details above, or ask specific questions like fit, climate, materials, and use case.';
       });
 
     form.addEventListener('submit', async function (event) {
@@ -165,7 +165,7 @@
         addMessage(reply || 'No response received. Please try again.', false);
       } catch (_err) {
         loading.remove();
-        addMessage('Assistant is currently unavailable. Please try again shortly.', false);
+        addMessage('Assistant is currently unavailable. Try again shortly, or ask a more specific question such as fit, comfort, climate, or daily use.', false);
       } finally {
         input.disabled = false;
         input.focus();

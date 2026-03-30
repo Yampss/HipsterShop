@@ -16,10 +16,11 @@ namespace cartservice.cartstore
     {
         private readonly IMongoCollection<CartDocument> _collection;
 
-        public MongoCartStore(string connectionString)
+        public MongoCartStore(string connectionString, string databaseName)
         {
             var client = new MongoClient(connectionString);
-            var database = client.GetDatabase("shopdb");
+            var dbName = string.IsNullOrWhiteSpace(databaseName) ? "cart_db" : databaseName;
+            var database = client.GetDatabase(dbName);
             _collection = database.GetCollection<CartDocument>("carts");
 
             // Ensure index on userId for fast lookups

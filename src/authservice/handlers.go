@@ -22,19 +22,23 @@ var tokenExpiry = 24 * time.Hour
 
 type handlers struct {
 	users     *mongo.Collection
+	events    *mongo.Collection
 	jwtSecret []byte
 	log       *logrus.Logger
 }
 
 func newHandlers(db *mongo.Database, jwtSecret string, log *logrus.Logger) *handlers {
 	coll := db.Collection("users")
+	events := db.Collection("auth_events")
 	// Unique index on email
 	idxModel := mongo.IndexModel{
 		Keys:    bson.D{{Key: "email", Value: 1}},
 		Options: options.Index().SetUnique(true),
 	}
 	coll.Indexes().CreateOne(context.Background(), idxModel)
-	return &handlers{users: coll, jwtSecret: []byte(jwtSecret), log: log}
+	events.Indexes().CreateOne(context.Background(), mongo.IndexModel{Keys: bson.D{{Key: "createdAt", Value: 1}}})
+	events.Indexes().CreateOne(context.Background(), mongo.IndexModel{Keys: bson.D{{Key: "eventType", Value: 1}}})
+	return &handlers{users: coll, events: events, jwtSecret: []byte(jwtSecret), log: log}
 }
 
 // --- Models ---
@@ -112,6 +116,7 @@ func (h *handlers) signup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.setTokenCookie(w, token)
+	h.recordAuthEvent(r.Context(), "signup_success", user.ID.Hex(), user.Email, "")
 	jsonOK(w, map[string]string{"userId": user.ID.Hex(), "email": user.Email, "name": user.Name})
 }
 
@@ -133,11 +138,13 @@ func (h *handlers) login(w http.ResponseWriter, r *http.Request) {
 	err := h.users.FindOne(ctx, bson.M{"email": strings.ToLower(strings.TrimSpace(req.Email))}).Decode(&user)
 	if err != nil {
 		// Return same error for wrong email or wrong password (prevent user enumeration)
+		h.recordAuthEvent(r.Context(), "login_failed", "", strings.ToLower(strings.TrimSpace(req.Email)), "user_not_found")
 		jsonError(w, "Invalid email or password", http.StatusUnauthorized)
 		return
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
+		h.recordAuthEvent(r.Context(), "login_failed", user.ID.Hex(), user.Email, "bad_password")
 		jsonError(w, "Invalid email or password", http.StatusUnauthorized)
 		return
 	}
@@ -149,11 +156,13 @@ func (h *handlers) login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.setTokenCookie(w, token)
+	h.recordAuthEvent(r.Context(), "login_success", user.ID.Hex(), user.Email, "")
 	jsonOK(w, map[string]string{"userId": user.ID.Hex(), "email": user.Email, "name": user.Name})
 }
 
 // POST /logout
 func (h *handlers) logout(w http.ResponseWriter, r *http.Request) {
+	claims, _ := h.extractClaims(r)
 	http.SetCookie(w, &http.Cookie{
 		Name:     "auth_token",
 		Value:    "",
@@ -161,6 +170,11 @@ func (h *handlers) logout(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   -1,
 		HttpOnly: true,
 	})
+	if claims != nil {
+		h.recordAuthEvent(r.Context(), "logout", claims.UserID, claims.Email, "")
+	} else {
+		h.recordAuthEvent(r.Context(), "logout", "", "", "anonymous")
+	}
 	jsonOK(w, map[string]string{"message": "logged out"})
 }
 
@@ -225,4 +239,22 @@ func jsonError(w http.ResponseWriter, msg string, code int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}
+
+func (h *handlers) recordAuthEvent(ctx context.Context, eventType, userID, email, reason string) {
+	if h.events == nil {
+		return
+	}
+	entry := bson.M{
+		"eventType": eventType,
+		"userId":    userID,
+		"email":     email,
+		"reason":    reason,
+		"createdAt": time.Now().UTC(),
+	}
+	writeCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	if _, err := h.events.InsertOne(writeCtx, entry); err != nil {
+		h.log.WithError(err).Debug("failed to record auth event")
+	}
 }

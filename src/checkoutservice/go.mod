@@ -8,6 +8,7 @@ require (
 	cloud.google.com/go/profiler v0.4.3
 	github.com/google/uuid v1.6.0
 	github.com/sirupsen/logrus v1.9.4
+	go.mongodb.org/mongo-driver v1.15.0
 )
 
 require (

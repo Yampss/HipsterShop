@@ -94,6 +94,13 @@ spec:
     - matches:
         - path:
             type: Exact
+            value: /api/assistant/chat
+      backendRefs:
+        - name: frontend
+          port: 80
+    - matches:
+        - path:
+            type: Exact
             value: /
       backendRefs:
         - name: frontend

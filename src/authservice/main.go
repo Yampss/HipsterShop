@@ -31,6 +31,7 @@ func main() {
 
 	mongoURI := mustEnv("MONGO_URI")
 	jwtSecret := mustEnv("JWT_SECRET")
+	dbName := envOrDefault("MONGO_DATABASE", "auth_db")
 
 	// Connect to MongoDB
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -45,7 +46,7 @@ func main() {
 	}
 	log.Info("Connected to MongoDB")
 
-	db := client.Database("shopdb")
+	db := client.Database(dbName)
 	h := newHandlers(db, jwtSecret, log)
 
 	r := mux.NewRouter()
@@ -74,6 +75,14 @@ func mustEnv(key string) string {
 	v := os.Getenv(key)
 	if v == "" {
 		log.Fatalf("Required environment variable %q is not set", key)
+	}
+	return v
+}
+
+func envOrDefault(key, fallback string) string {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
 	}
 	return v
 }

@@ -23,12 +23,13 @@ namespace cartservice
         public void ConfigureServices(IServiceCollection services)
         {
             string mongoUri  = Configuration["MONGO_URI"];
+            string mongoDatabase = Configuration["MONGO_DATABASE"];
             string redisAddr = Configuration["REDIS_ADDR"];
 
             if (!string.IsNullOrEmpty(mongoUri))
             {
                 Console.WriteLine("Creating MongoDB cart store");
-                services.AddSingleton<ICartStore>(new MongoCartStore(mongoUri));
+                services.AddSingleton<ICartStore>(new MongoCartStore(mongoUri, mongoDatabase));
             }
             else if (!string.IsNullOrEmpty(redisAddr))
             {

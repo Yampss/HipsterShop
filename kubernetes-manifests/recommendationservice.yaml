@@ -16,7 +16,7 @@ spec:
       terminationGracePeriodSeconds: 5
       containers:
       - name: server
-        image: cazzzzz/tr-recommendationservice-hipster:latest
+        image: cazzzzz/trf-recommendationservice-hipster:latest
         ports:
         - containerPort: 8080
         readinessProbe:
@@ -38,6 +38,22 @@ spec:
           value: "8080"
         - name: PRODUCT_CATALOG_SERVICE_ADDR
           value: "productcatalogservice:3550"
+        - name: ANALYTICS_MONGO_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: mongo-app-secret
+              key: ANALYTICS_MONGO_USERNAME
+        - name: ANALYTICS_MONGO_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mongo-app-secret
+              key: ANALYTICS_MONGO_PASSWORD
+        - name: ANALYTICS_MONGO_URI
+          value: "mongodb://$(ANALYTICS_MONGO_USERNAME):$(ANALYTICS_MONGO_PASSWORD)@mongodb-0.mongo-headless:27017,mongodb-1.mongo-headless:27017,mongodb-2.mongo-headless:27017/analytics_db?replicaSet=rs0&authSource=analytics_db&authMechanism=SCRAM-SHA-256"
+        - name: MONGO_DATABASE
+          value: "analytics_db"
+        - name: MONGO_RECOMMENDATIONS_COLLECTION
+          value: "recommendations"
         resources:
           requests:
             cpu: 100m

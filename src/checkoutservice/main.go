@@ -9,15 +9,19 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/profiler"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	money "github.com/GoogleCloudPlatform/microservices-demo/src/checkoutservice/money"
 )
@@ -106,6 +110,14 @@ type checkoutService struct {
 	shippingSvcAddr       string
 	emailSvcAddr          string
 	paymentSvcAddr        string
+	orderStore            *mongoOrderStore
+}
+
+type mongoOrderStore struct {
+	enabled bool
+	client  *mongo.Client
+	orders  *mongo.Collection
+	events  *mongo.Collection
 }
 
 var httpClient = &http.Client{Timeout: 10 * time.Second}
@@ -136,6 +148,12 @@ func main() {
 	mustMapEnv(&svc.currencySvcAddr, "CURRENCY_SERVICE_ADDR")
 	mustMapEnv(&svc.emailSvcAddr, "EMAIL_SERVICE_ADDR")
 	mustMapEnv(&svc.paymentSvcAddr, "PAYMENT_SERVICE_ADDR")
+	svc.orderStore = newMongoOrderStoreFromEnv()
+	if svc.orderStore.enabled {
+		log.Info("checkout order persistence enabled")
+	} else {
+		log.Info("checkout order persistence disabled")
+	}
 
 	log.Infof("service config: %+v", svc)
 
@@ -213,6 +231,8 @@ func (cs *checkoutService) handlePlaceOrder(w http.ResponseWriter, r *http.Reque
 	} else {
 		log.Infof("order confirmation email sent to %q", req.Email)
 	}
+
+	cs.persistOrderRecord(req.UserId, req.Email, req.UserCurrency, orderResult, &total, txID)
 
 	resp := PlaceOrderResponse{Order: orderResult}
 	w.Header().Set("Content-Type", "application/json")
@@ -387,6 +407,107 @@ func (cs *checkoutService) shipOrder(address *Address, items []CartItem) (string
 		return "", fmt.Errorf("shipment failed: %+v", err)
 	}
 	return resp.TrackingId, nil
+}
+
+func newMongoOrderStoreFromEnv() *mongoOrderStore {
+	uri := strings.TrimSpace(os.Getenv("ORDER_MONGO_URI"))
+	if uri == "" {
+		uri = strings.TrimSpace(os.Getenv("MONGO_URI"))
+	}
+	if uri == "" {
+		return &mongoOrderStore{enabled: false}
+	}
+
+	dbName := strings.TrimSpace(os.Getenv("MONGO_DATABASE"))
+	if dbName == "" {
+		dbName = "order_db"
+	}
+	ordersCollection := strings.TrimSpace(os.Getenv("MONGO_ORDERS_COLLECTION"))
+	if ordersCollection == "" {
+		ordersCollection = "orders"
+	}
+	eventsCollection := strings.TrimSpace(os.Getenv("MONGO_ORDER_EVENTS_COLLECTION"))
+	if eventsCollection == "" {
+		eventsCollection = "order_events"
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
+	if err != nil {
+		log.WithError(err).Warn("failed to initialize checkout Mongo client")
+		return &mongoOrderStore{enabled: false}
+	}
+	if err := client.Ping(ctx, nil); err != nil {
+		log.WithError(err).Warn("checkout Mongo ping failed")
+		_ = client.Disconnect(context.Background())
+		return &mongoOrderStore{enabled: false}
+	}
+
+	db := client.Database(dbName)
+	store := &mongoOrderStore{
+		enabled: true,
+		client:  client,
+		orders:  db.Collection(ordersCollection),
+		events:  db.Collection(eventsCollection),
+	}
+
+	idxCtx, idxCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer idxCancel()
+	_, _ = store.orders.Indexes().CreateOne(idxCtx, mongo.IndexModel{Keys: map[string]int{"orderId": 1}, Options: options.Index().SetUnique(true).SetName("uniq_order_id")})
+	_, _ = store.orders.Indexes().CreateOne(idxCtx, mongo.IndexModel{Keys: map[string]int{"userId": 1}, Options: options.Index().SetName("idx_user_id")})
+	_, _ = store.events.Indexes().CreateOne(idxCtx, mongo.IndexModel{Keys: map[string]int{"orderId": 1, "eventType": 1}, Options: options.Index().SetName("idx_order_event")})
+
+	return store
+}
+
+func (cs *checkoutService) persistOrderRecord(userID, email, currency string, order *OrderResult, total *money.Money, transactionID string) {
+	if cs.orderStore == nil || !cs.orderStore.enabled || order == nil {
+		return
+	}
+
+	now := time.Now().UTC()
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+	defer cancel()
+
+	orderDoc := map[string]interface{}{
+		"orderId":             order.OrderId,
+		"userId":              userID,
+		"email":               email,
+		"currency":            currency,
+		"transactionId":       transactionID,
+		"shippingTrackingId":  order.ShippingTrackingId,
+		"shippingAddress":     order.ShippingAddress,
+		"shippingCost":        order.ShippingCost,
+		"items":               order.Items,
+		"totalPaid":           total,
+		"status":              "placed",
+		"createdAt":           now,
+		"updatedAt":           now,
+	}
+
+	_, err := cs.orderStore.orders.UpdateOne(
+		ctx,
+		map[string]interface{}{"orderId": order.OrderId},
+		map[string]interface{}{"$set": orderDoc, "$setOnInsert": map[string]interface{}{"insertedAt": now}},
+		options.Update().SetUpsert(true),
+	)
+	if err != nil {
+		log.WithField("order_id", order.OrderId).WithError(err).Warn("failed to persist checkout order")
+		return
+	}
+
+	eventDoc := map[string]interface{}{
+		"orderId":       order.OrderId,
+		"userId":        userID,
+		"eventType":     "order_placed",
+		"transactionId": transactionID,
+		"createdAt":     now,
+	}
+	if _, err := cs.orderStore.events.InsertOne(ctx, eventDoc); err != nil {
+		log.WithField("order_id", order.OrderId).WithError(err).Warn("failed to persist checkout order event")
+	}
 }
 
 func mustMapEnv(target *string, envKey string) {

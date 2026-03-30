@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GoogleCloudPlatform/microservices-demo/src/frontend/money"
 	"github.com/sirupsen/logrus"
 )
 
@@ -27,6 +28,20 @@ type assistantChatRequest struct {
 
 type assistantChatResponse struct {
 	Reply string `json:"reply"`
+}
+
+type assistantContextProduct struct {
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Price       string   `json:"price"`
+	Categories  []string `json:"categories,omitempty"`
+	Picture     string   `json:"picture,omitempty"`
+}
+
+type assistantContextPack struct {
+	PrimaryProduct  assistantContextProduct   `json:"primaryProduct"`
+	RelatedProducts []assistantContextProduct `json:"relatedProducts,omitempty"`
 }
 
 type geminiPart struct {
@@ -104,7 +119,13 @@ func (fe *frontendServer) assistantChatHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	reply, err := callGeminiAssistant(r.Context(), apiKey, os.Getenv("GEMINI_MODEL"), product, req.Message)
+	relatedProducts, recErr := fe.getRecommendations(r.Context(), sessionID(r), []string{req.ProductID})
+	if recErr != nil {
+		log.WithField("product_id", req.ProductID).WithField("error", recErr).Debug("assistant recommendations unavailable")
+		relatedProducts = nil
+	}
+
+	reply, err := callGeminiAssistant(r.Context(), apiKey, os.Getenv("GEMINI_MODEL"), product, relatedProducts, req.Message)
 	if err != nil {
 		log.WithField("product_id", req.ProductID).WithField("error", err).Warn("assistant call failed")
 		http.Error(w, "assistant request failed", http.StatusBadGateway)
@@ -115,7 +136,7 @@ func (fe *frontendServer) assistantChatHandler(w http.ResponseWriter, r *http.Re
 	_ = json.NewEncoder(w).Encode(assistantChatResponse{Reply: reply})
 }
 
-func callGeminiAssistant(ctx context.Context, apiKey, model string, product *Product, userMessage string) (string, error) {
+func callGeminiAssistant(ctx context.Context, apiKey, model string, product *Product, relatedProducts []*Product, userMessage string) (string, error) {
 	model = strings.TrimSpace(model)
 	if model == "" {
 		model = defaultGeminiModel
@@ -123,18 +144,22 @@ func callGeminiAssistant(ctx context.Context, apiKey, model string, product *Pro
 
 	question := userMessage
 	if question == "" {
-		question = "Give me a concise 2-3 sentence description of this product, including what it is best for."
+		question = "Give me a practical quick-buy summary of this product and who it is best for."
 	}
 
-	productJSON, err := json.MarshalIndent(product, "", "  ")
+	contextPack := buildAssistantContextPack(product, relatedProducts)
+	contextJSON, err := json.MarshalIndent(contextPack, "", "  ")
 	if err != nil {
-		return "", fmt.Errorf("marshal product context: %w", err)
+		return "", fmt.Errorf("marshal assistant context: %w", err)
 	}
 
-	systemInstruction := "You are a shopping assistant for Hipster Shop. Use only the provided product JSON as source of truth. " +
-		"If a detail is missing, clearly say you do not know. Keep responses brief, practical, and trustworthy."
+	systemInstruction := "You are a shopping assistant for Hipster Shop. Use only explicit facts from the context JSON. " +
+		"Do not infer material, comfort, climate suitability, durability, or fit unless directly stated. " +
+		"If the question needs unavailable details, say exactly: 'I don't have enough information in the product data to answer that precisely.' " +
+		"Then ask one short follow-up question. Keep response plain text only (no markdown, no bullets, no bold markers). " +
+		"Keep responses brief and factual."
 
-	userPrompt := fmt.Sprintf("Product JSON:\n%s\n\nCustomer question:\n%s", string(productJSON), question)
+	userPrompt := fmt.Sprintf("Context JSON:\n%s\n\nCustomer question:\n%s", string(contextJSON), question)
 	payload := geminiRequest{
 		SystemInstruction: &geminiContent{
 			Parts: []geminiPart{{Text: systemInstruction}},
@@ -146,8 +171,8 @@ func callGeminiAssistant(ctx context.Context, apiKey, model string, product *Pro
 			},
 		},
 		GenerationConfig: geminiGenerationConfig{
-			Temperature:     0.4,
-			MaxOutputTokens: 220,
+			Temperature:     0.25,
+			MaxOutputTokens: 260,
 		},
 	}
 
@@ -214,5 +239,74 @@ func callGeminiAssistant(ctx context.Context, apiKey, model string, product *Pro
 	if out == "" {
 		return "", fmt.Errorf("gemini returned empty text")
 	}
-	return out, nil
+	return normalizeAssistantReply(out), nil
+}
+
+func buildAssistantContextPack(product *Product, relatedProducts []*Product) assistantContextPack {
+	pack := assistantContextPack{PrimaryProduct: toAssistantContextProduct(product)}
+	if len(relatedProducts) > 0 {
+		pack.RelatedProducts = make([]assistantContextProduct, 0, len(relatedProducts))
+		for _, rp := range relatedProducts {
+			if rp == nil || (product != nil && rp.Id == product.Id) {
+				continue
+			}
+			pack.RelatedProducts = append(pack.RelatedProducts, toAssistantContextProduct(rp))
+			if len(pack.RelatedProducts) == 3 {
+				break
+			}
+		}
+	}
+	return pack
+}
+
+func toAssistantContextProduct(p *Product) assistantContextProduct {
+	if p == nil {
+		return assistantContextProduct{}
+	}
+	return assistantContextProduct{
+		ID:          p.Id,
+		Name:        p.Name,
+		Description: p.Description,
+		Price:       formatProductPrice(p.PriceUsd),
+		Categories:  p.Categories,
+		Picture:     p.Picture,
+	}
+}
+
+func formatProductPrice(m *money.Money) string {
+	if m == nil {
+		return "unknown"
+	}
+	amount := float64(m.Units) + float64(m.Nanos)/1e9
+	return fmt.Sprintf("%s %.2f", strings.TrimSpace(m.CurrencyCode), amount)
+}
+
+func normalizeAssistantReply(reply string) string {
+	reply = strings.ReplaceAll(reply, "\r\n", "\n")
+	reply = strings.ReplaceAll(reply, "**", "")
+	reply = strings.ReplaceAll(reply, "__", "")
+	reply = strings.ReplaceAll(reply, "`", "")
+	lines := strings.Split(reply, "\n")
+	out := make([]string, 0, len(lines))
+	blank := false
+	for _, line := range lines {
+		line = strings.TrimPrefix(line, "- ")
+		line = strings.TrimPrefix(line, "* ")
+		line = strings.TrimRight(line, " \t")
+		if strings.TrimSpace(line) == "" {
+			if blank {
+				continue
+			}
+			blank = true
+			out = append(out, "")
+			continue
+		}
+		blank = false
+		out = append(out, line)
+	}
+	clean := strings.TrimSpace(strings.Join(out, "\n"))
+	if len(clean) > 1100 {
+		clean = strings.TrimSpace(clean[:1100]) + "..."
+	}
+	return clean
 }

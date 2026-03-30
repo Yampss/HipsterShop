@@ -16,7 +16,7 @@ spec:
       terminationGracePeriodSeconds: 5
       containers:
       - name: server
-        image: cazzzzz/tr-adservice-hipster:latest
+        image: cazzzzz/trf-adservice-hipster:latest
         ports:
         - containerPort: 9555
         env:

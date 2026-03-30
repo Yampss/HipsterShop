@@ -16,7 +16,7 @@ spec:
       terminationGracePeriodSeconds: 5
       containers:
       - name: server
-        image: cazzzzz/tr-paymentservice-hipster:latest
+        image: cazzzzz/trf-paymentservice-hipster:latest
         ports:
         - containerPort: 50051
         env:
@@ -28,6 +28,22 @@ spec:
           value: "50051"
         - name: DISABLE_PROFILER
           value: "1"
+        - name: PAYMENT_MONGO_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: mongo-app-secret
+              key: PAYMENT_MONGO_USERNAME
+        - name: PAYMENT_MONGO_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mongo-app-secret
+              key: PAYMENT_MONGO_PASSWORD
+        - name: PAYMENT_MONGO_URI
+          value: "mongodb://$(PAYMENT_MONGO_USERNAME):$(PAYMENT_MONGO_PASSWORD)@mongodb-0.mongo-headless:27017,mongodb-1.mongo-headless:27017,mongodb-2.mongo-headless:27017/payment_db?replicaSet=rs0&authSource=payment_db&authMechanism=SCRAM-SHA-256"
+        - name: MONGO_DATABASE
+          value: "payment_db"
+        - name: MONGO_PAYMENTS_COLLECTION
+          value: "charges"
         readinessProbe:
           httpGet:
             path: "/_healthz"
