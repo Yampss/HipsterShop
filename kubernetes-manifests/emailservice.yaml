@@ -37,7 +37,7 @@ spec:
               name: mongo-app-secret
               key: NOTIFICATION_MONGO_PASSWORD
         - name: EMAIL_MONGO_URI
-          value: "mongodb://$(EMAIL_MONGO_USERNAME):$(EMAIL_MONGO_PASSWORD)@mongodb-0.mongo-headless:27017,mongodb-1.mongo-headless:27017,mongodb-2.mongo-headless:27017/notification_db?replicaSet=rs0&authSource=notification_db&authMechanism=SCRAM-SHA-256"
+          value: "mongodb://$(EMAIL_MONGO_USERNAME):$(EMAIL_MONGO_PASSWORD)@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/notification_db?replicaSet=rs0&authSource=notification_db&authMechanism=SCRAM-SHA-256"
         - name: MONGO_DATABASE
           value: "notification_db"
         - name: MONGO_EMAIL_EVENTS_COLLECTION

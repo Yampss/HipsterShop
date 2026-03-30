@@ -56,7 +56,7 @@ spec:
                 name: mongo-app-secret
                 key: ORDER_MONGO_PASSWORD
           - name: ORDER_MONGO_URI
-            value: "mongodb://$(ORDER_MONGO_USERNAME):$(ORDER_MONGO_PASSWORD)@mongodb-0.mongo-headless:27017,mongodb-1.mongo-headless:27017,mongodb-2.mongo-headless:27017/order_db?replicaSet=rs0&authSource=order_db&authMechanism=SCRAM-SHA-256"
+            value: "mongodb://$(ORDER_MONGO_USERNAME):$(ORDER_MONGO_PASSWORD)@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/order_db?replicaSet=rs0&authSource=order_db&authMechanism=SCRAM-SHA-256"
           - name: MONGO_DATABASE
             value: "order_db"
           - name: MONGO_ORDERS_COLLECTION

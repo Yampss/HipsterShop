@@ -246,25 +246,25 @@ spec:
           set -e
 
           echo "Waiting for mongodb-0..."
-          until mongosh --host mongodb-0.mongo-headless:27017 --eval "db.adminCommand('ping')" > /dev/null 2>&1; do
+          until mongosh --host mongodb-0.mongo-headless.hipster.svc.cluster.local:27017 --eval "db.adminCommand('ping')" > /dev/null 2>&1; do
             sleep 3
           done
           echo "mongodb-0 ready."
 
           echo "Waiting for mongodb-1..."
-          until mongosh --host mongodb-1.mongo-headless:27017 --eval "db.adminCommand('ping')" > /dev/null 2>&1; do
+          until mongosh --host mongodb-1.mongo-headless.hipster.svc.cluster.local:27017 --eval "db.adminCommand('ping')" > /dev/null 2>&1; do
             sleep 3
           done
           echo "mongodb-1 ready."
 
           echo "Waiting for mongodb-2..."
-          until mongosh --host mongodb-2.mongo-headless:27017 --eval "db.adminCommand('ping')" > /dev/null 2>&1; do
+          until mongosh --host mongodb-2.mongo-headless.hipster.svc.cluster.local:27017 --eval "db.adminCommand('ping')" > /dev/null 2>&1; do
             sleep 3
           done
           echo "mongodb-2 ready."
 
           echo "All MongoDB pods ready. Initiating replica set..."
-          mongosh --host mongodb-0.mongo-headless:27017 --eval "
+          mongosh --host mongodb-0.mongo-headless.hipster.svc.cluster.local:27017 --eval "
             try {
               var status = rs.status();
               if (status.ok === 1) {
@@ -276,9 +276,9 @@ spec:
                 rs.initiate({
                   _id: 'rs0',
                   members: [
-                    { _id: 0, host: 'mongodb-0.mongo-headless:27017', priority: 2 },
-                    { _id: 1, host: 'mongodb-1.mongo-headless:27017', priority: 1 },
-                    { _id: 2, host: 'mongodb-2.mongo-headless:27017', priority: 1 }
+                    { _id: 0, host: 'mongodb-0.mongo-headless.hipster.svc.cluster.local:27017', priority: 2 },
+                    { _id: 1, host: 'mongodb-1.mongo-headless.hipster.svc.cluster.local:27017', priority: 1 },
+                    { _id: 2, host: 'mongodb-2.mongo-headless.hipster.svc.cluster.local:27017', priority: 1 }
                   ]
                 });
                 print('Replica set initiated successfully.');
@@ -294,7 +294,7 @@ spec:
           "
 
           echo "Waiting for primary election..."
-          until mongosh --host mongodb-0.mongo-headless:27017 --eval "
+          until mongosh --host mongodb-0.mongo-headless.hipster.svc.cluster.local:27017 --eval "
             var status = rs.status();
             var hasPrimary = status.members && status.members.some(function(m) { return m.stateStr === 'PRIMARY'; });
             if (!hasPrimary) { quit(1); }
@@ -305,7 +305,7 @@ spec:
           done
 
           echo "Creating admin user..."
-          mongosh --host mongodb-0.mongo-headless:27017 --eval "
+          mongosh --host mongodb-0.mongo-headless.hipster.svc.cluster.local:27017 --eval "
             var adminDb = db.getSiblingDB('admin');
             var existingUser = adminDb.getUser('$MONGO_ROOT_USERNAME');
             if (existingUser) {
@@ -321,7 +321,7 @@ spec:
           "
 
           echo "Creating application database users..."
-          mongosh --host mongodb-0.mongo-headless:27017 --authenticationDatabase admin -u "$MONGO_ROOT_USERNAME" -p "$MONGO_ROOT_PASSWORD" --eval "
+          mongosh --host mongodb-0.mongo-headless.hipster.svc.cluster.local:27017 --authenticationDatabase admin -u "$MONGO_ROOT_USERNAME" -p "$MONGO_ROOT_PASSWORD" --eval "
             function ensureDbUser(dbName, userName, password) {
               var targetDb = db.getSiblingDB(dbName);
               var existingUser = targetDb.getUser(userName);
@@ -379,7 +379,7 @@ spec:
           set -e
 
           check_primary() {
-            mongosh "mongodb://$MONGO_ROOT_USERNAME:$MONGO_ROOT_PASSWORD@mongodb-0.mongo-headless:27017,mongodb-1.mongo-headless:27017,mongodb-2.mongo-headless:27017/admin?replicaSet=rs0&authSource=admin" --quiet --eval "db.hello().isWritablePrimary" | grep -q true
+            mongosh "mongodb://$MONGO_ROOT_USERNAME:$MONGO_ROOT_PASSWORD@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/admin?replicaSet=rs0&authSource=admin" --quiet --eval "db.hello().isWritablePrimary" | grep -q true
           }
 
           echo "Waiting for writable MongoDB primary for catalog seed..."
@@ -388,7 +388,7 @@ spec:
             sleep 3
           done
 
-          mongosh "mongodb://$MONGO_ROOT_USERNAME:$MONGO_ROOT_PASSWORD@mongodb-0.mongo-headless:27017,mongodb-1.mongo-headless:27017,mongodb-2.mongo-headless:27017/admin?replicaSet=rs0&authSource=admin" --eval '
+          mongosh "mongodb://$MONGO_ROOT_USERNAME:$MONGO_ROOT_PASSWORD@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/admin?replicaSet=rs0&authSource=admin" --eval '
             var catalogDb = db.getSiblingDB("catalog_db");
             var coll = catalogDb.getCollection("products");
 
@@ -445,7 +445,7 @@ spec:
           set -e
 
           check_primary() {
-            mongosh "mongodb://$MONGO_ROOT_USERNAME:$MONGO_ROOT_PASSWORD@mongodb-0.mongo-headless:27017,mongodb-1.mongo-headless:27017,mongodb-2.mongo-headless:27017/admin?replicaSet=rs0&authSource=admin" --quiet --eval "db.hello().isWritablePrimary" | grep -q true
+            mongosh "mongodb://$MONGO_ROOT_USERNAME:$MONGO_ROOT_PASSWORD@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/admin?replicaSet=rs0&authSource=admin" --quiet --eval "db.hello().isWritablePrimary" | grep -q true
           }
 
           echo "Waiting for writable MongoDB primary for migration..."
@@ -454,7 +454,7 @@ spec:
             sleep 3
           done
 
-          mongosh "mongodb://$MONGO_ROOT_USERNAME:$MONGO_ROOT_PASSWORD@mongodb-0.mongo-headless:27017,mongodb-1.mongo-headless:27017,mongodb-2.mongo-headless:27017/admin?replicaSet=rs0&authSource=admin" --eval '
+          mongosh "mongodb://$MONGO_ROOT_USERNAME:$MONGO_ROOT_PASSWORD@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/admin?replicaSet=rs0&authSource=admin" --eval '
             function migrateCollection(sourceDbName, sourceCollName, targetDbName, targetCollName, keyField) {
               var source = db.getSiblingDB(sourceDbName).getCollection(sourceCollName);
               var target = db.getSiblingDB(targetDbName).getCollection(targetCollName);

@@ -34,7 +34,7 @@ spec:
         - |
           set -e
           echo "Waiting for cart Mongo auth to become ready..."
-          until mongosh "mongodb://$MONGO_USERNAME:$MONGO_PASSWORD@mongodb-0.mongo-headless:27017,mongodb-1.mongo-headless:27017,mongodb-2.mongo-headless:27017/cart_db?replicaSet=rs0&authSource=cart_db&authMechanism=SCRAM-SHA-256" --quiet --eval "db.adminCommand('ping').ok" | grep -q 1; do
+          until mongosh "mongodb://$MONGO_USERNAME:$MONGO_PASSWORD@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/cart_db?replicaSet=rs0&authSource=cart_db&authMechanism=SCRAM-SHA-256" --quiet --eval "db.adminCommand('ping').ok" | grep -q 1; do
             echo "Cart Mongo auth not ready yet. Retrying in 3s..."
             sleep 3
           done
@@ -68,7 +68,7 @@ spec:
         - name: MONGO_DATABASE
           value: "cart_db"
         - name: MONGO_URI
-          value: "mongodb://$(MONGO_USERNAME):$(MONGO_PASSWORD)@mongodb-0.mongo-headless:27017,mongodb-1.mongo-headless:27017,mongodb-2.mongo-headless:27017/cart_db?replicaSet=rs0&authSource=cart_db&authMechanism=SCRAM-SHA-256"
+          value: "mongodb://$(MONGO_USERNAME):$(MONGO_PASSWORD)@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/cart_db?replicaSet=rs0&authSource=cart_db&authMechanism=SCRAM-SHA-256"
         resources:
           requests:
             cpu: 200m

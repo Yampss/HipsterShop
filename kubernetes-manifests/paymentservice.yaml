@@ -39,7 +39,7 @@ spec:
               name: mongo-app-secret
               key: PAYMENT_MONGO_PASSWORD
         - name: PAYMENT_MONGO_URI
-          value: "mongodb://$(PAYMENT_MONGO_USERNAME):$(PAYMENT_MONGO_PASSWORD)@mongodb-0.mongo-headless:27017,mongodb-1.mongo-headless:27017,mongodb-2.mongo-headless:27017/payment_db?replicaSet=rs0&authSource=payment_db&authMechanism=SCRAM-SHA-256"
+          value: "mongodb://$(PAYMENT_MONGO_USERNAME):$(PAYMENT_MONGO_PASSWORD)@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/payment_db?replicaSet=rs0&authSource=payment_db&authMechanism=SCRAM-SHA-256"
         - name: MONGO_DATABASE
           value: "payment_db"
         - name: MONGO_PAYMENTS_COLLECTION
