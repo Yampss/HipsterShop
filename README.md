@@ -26,7 +26,7 @@ kubectl apply -k kubernetes-manifests
 
 Deploy optional components:
 
-kubectl apply -f kubernetes-manifests/loadgenerator.yaml
+
 kubectl apply -f kubernetes-manifests/postgres.yaml
 
 Check workload status:

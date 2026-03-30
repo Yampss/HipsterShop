@@ -33,7 +33,6 @@ stringData:
   ANALYTICS_MONGO_PASSWORD: analytics_password
 
 ---
-# Headless service — stable DNS for replica set member discovery
 apiVersion: v1
 kind: Service
 metadata:
@@ -51,7 +50,6 @@ spec:
     targetPort: 27017
 
 ---
-# ClusterIP service — single stable endpoint for applications
 apiVersion: v1
 kind: Service
 metadata:

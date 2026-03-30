@@ -18,4 +18,3 @@ resources:
  - shippingservice.yaml
  - frontend.yaml
  - kgateway.yaml
- - loadgenerator.yaml

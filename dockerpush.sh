@@ -13,8 +13,6 @@ docker build -t cazzzzz/trf-emailservice-hipster:latest ./src/emailservice
 docker push cazzzzz/trf-emailservice-hipster:latest
 docker build -t cazzzzz/trf-frontend-hipster:latest ./src/frontend
 docker push cazzzzz/trf-frontend-hipster:latest
-docker build -t cazzzzz/trf-loadgenerator-hipster:latest ./src/loadgenerator
-docker push cazzzzz/trf-loadgenerator-hipster:latest
 docker build -t cazzzzz/trf-paymentservice-hipster:latest ./src/paymentservice
 docker push cazzzzz/trf-paymentservice-hipster:latest
 docker build -t cazzzzz/trf-productcatalogservice-hipster:latest ./src/productcatalogservice
