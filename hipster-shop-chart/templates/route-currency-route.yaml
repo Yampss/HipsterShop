@@ -1,0 +1,31 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ .Values.routes.currency.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.currencyservice.name }}
+spec:
+  parentRefs:
+    - name: {{ .Values.gateway.name }}
+
+  rules:
+    {{- range .Values.routes.currency.endpoints }}
+    - matches:
+        - path:
+            type: Exact
+            value: {{ .path }}
+
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplaceFullPath
+              replaceFullPath: {{ .rewrite }}
+
+      backendRefs:
+        - name: {{ $.Values.currencyservice.name }}
+          port: {{ $.Values.currencyservice.port }}
+    {{- end }}
+
+

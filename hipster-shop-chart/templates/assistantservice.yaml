@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.assistantservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.assistantservice.name }}
+spec:
+  replicas: {{ .Values.assistantservice.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.assistantservice.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.assistantservice.name }}
+    spec:
+      containers:
+        - name: server
+          image: {{ .Values.assistantservice.image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: {{ .Values.assistantservice.port }}
+
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.configmap.name }}
+
+          env:
+            - name: GATEWAY_ADDR
+              value: "{{ .Values.assistantservice.gatewayAddr }}"
+
+            - name: GEMINI_MODEL
+              value: "{{ .Values.assistantservice.gemini.model }}"
+
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.assistantservice.gemini.secretName }}
+                  key: {{ .Values.assistantservice.gemini.secretKey }}
+
+          resources:
+            requests:
+              cpu: {{ .Values.assistantservice.resources.requests.cpu }}
+              memory: {{ .Values.assistantservice.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.assistantservice.resources.limits.cpu }}
+              memory: {{ .Values.assistantservice.resources.limits.memory }}
+
+          readinessProbe:
+            httpGet:
+              path: /_healthz
+              port: {{ .Values.assistantservice.port }}
+
+          livenessProbe:
+            httpGet:
+              path: /_healthz
+              port: {{ .Values.assistantservice.port }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.assistantservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.assistantservice.name }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Values.assistantservice.name }}
+  ports:
+    - name: http
+      port: {{ .Values.assistantservice.port }}
+      targetPort: {{ .Values.assistantservice.port }}

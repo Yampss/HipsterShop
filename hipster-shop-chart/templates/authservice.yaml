@@ -1,0 +1,142 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.authservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.authservice.name }}
+spec:
+  replicas: {{ .Values.authservice.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.authservice.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.authservice.name }}
+    spec:
+      terminationGracePeriodSeconds: 5
+
+      initContainers:
+        - name: wait-for-mongodb-primary
+          image: {{ .Values.authservice.initContainer.image }}
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.configmap.name }}
+          env:
+            - name: MONGO_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.rootSecretName }}
+                  key: {{ .Values.mongodb.rootUsernameKey }}
+            - name: MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.rootSecretName }}
+                  key: {{ .Values.mongodb.rootPasswordKey }}
+          command:
+            - bash
+            - -c
+            - |
+              set -e
+              check_primary() {
+                mongosh "{{ .Values.authservice.mongo.primaryCheckUriAuth }}" \
+                  --quiet --eval "db.hello().isWritablePrimary" | grep -q true || \
+                mongosh "{{ .Values.authservice.mongo.primaryCheckUriNoAuth }}" \
+                  --quiet --eval "db.hello().isWritablePrimary" | grep -q true
+              }
+              echo "Waiting for MongoDB replica set primary..."
+              until check_primary; do
+                echo "No writable primary yet. Retrying in 3s..."
+                sleep 3
+              done
+              echo "MongoDB primary is ready."
+
+      containers:
+        - name: server
+          image: {{ .Values.authservice.image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: {{ .Values.authservice.port }}
+
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.configmap.name }}
+
+          env:
+            - name: MONGO_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.secretName }}
+                  key: {{ .Values.mongodb.authUsernameKey }}
+
+            - name: MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.secretName }}
+                  key: {{ .Values.mongodb.authPasswordKey }}
+
+            - name: MONGO_DATABASE
+              value: "{{ .Values.authservice.mongo.database }}"
+
+            - name: MONGO_URI
+              value: "{{ .Values.authservice.mongo.uri }}"
+
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.authservice.jwt.secretName }}
+                  key: {{ .Values.authservice.jwt.secretKey }}
+
+            - name: PORT
+              value: "{{ .Values.authservice.port }}"
+
+          readinessProbe:
+            initialDelaySeconds: 10
+            httpGet:
+              path: "/_healthz"
+              port: {{ .Values.authservice.port }}
+
+          livenessProbe:
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            httpGet:
+              path: "/_healthz"
+              port: {{ .Values.authservice.port }}
+
+          resources:
+            requests:
+              cpu: {{ .Values.authservice.resources.requests.cpu }}
+              memory: {{ .Values.authservice.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.authservice.resources.limits.cpu }}
+              memory: {{ .Values.authservice.resources.limits.memory }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.authservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.authservice.name }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Values.authservice.name }}
+  ports:
+    - name: http
+      port: {{ .Values.authservice.port }}
+      targetPort: {{ .Values.authservice.port }}
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Values.authservice.jwt.secretName }}
+  namespace: {{ .Values.namespace }}
+type: Opaque
+stringData:
+  {{ .Values.authservice.jwt.secretKey }}: "{{ .Values.authservice.jwt.secretValue }}"
+
+

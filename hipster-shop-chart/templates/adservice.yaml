@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.adservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.adservice.name }}
+spec:
+  replicas: {{ .Values.adservice.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.adservice.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.adservice.name }}
+    spec:
+      terminationGracePeriodSeconds: 5
+      containers:
+        - name: server
+          image: {{ .Values.adservice.image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: {{ .Values.adservice.port }}
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.configmap.name }}
+          env:
+            - name: PORT
+              value: "{{ .Values.adservice.port }}"
+          resources:
+            requests:
+              cpu: {{ .Values.adservice.resources.requests.cpu }}
+              memory: {{ .Values.adservice.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.adservice.resources.limits.cpu }}
+              memory: {{ .Values.adservice.resources.limits.memory }}
+          readinessProbe:
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            httpGet:
+              path: "/_healthz"
+              port: {{ .Values.adservice.port }}
+          livenessProbe:
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            httpGet:
+              path: "/_healthz"
+              port: {{ .Values.adservice.port }}
+          volumeMounts:
+            - mountPath: /tmp
+              name: tmp-volume
+      volumes:
+        - name: tmp-volume
+          emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.adservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.adservice.name }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Values.adservice.name }}
+  ports:
+    - name: http
+      port: {{ .Values.adservice.port }}
+      targetPort: {{ .Values.adservice.port }}
+

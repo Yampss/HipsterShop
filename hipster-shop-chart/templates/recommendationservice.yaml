@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.recommendationservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.recommendationservice.name }}
+spec:
+  replicas: {{ .Values.recommendationservice.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.recommendationservice.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.recommendationservice.name }}
+    spec:
+      terminationGracePeriodSeconds: 5
+      containers:
+        - name: server
+          image: {{ .Values.recommendationservice.image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: {{ .Values.recommendationservice.port }}
+
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.configmap.name }}
+
+          env:
+            - name: PORT
+              value: "{{ .Values.recommendationservice.port }}"
+
+            - name: PRODUCT_CATALOG_SERVICE_ADDR
+              value: "{{ .Values.recommendationservice.productCatalogAddr }}"
+
+            - name: ANALYTICS_MONGO_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.secretName }}
+                  key: {{ .Values.mongodb.analyticsUsernameKey }}
+
+            - name: ANALYTICS_MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.secretName }}
+                  key: {{ .Values.mongodb.analyticsPasswordKey }}
+
+            - name: ANALYTICS_MONGO_URI
+              value: "{{ .Values.recommendationservice.mongo.uri }}"
+
+            - name: MONGO_DATABASE
+              value: "{{ .Values.recommendationservice.mongo.database }}"
+
+            - name: MONGO_RECOMMENDATIONS_COLLECTION
+              value: "{{ .Values.recommendationservice.mongo.collection }}"
+
+          readinessProbe:
+            periodSeconds: 5
+            httpGet:
+              path: "/_healthz"
+              port: {{ .Values.recommendationservice.port }}
+
+          livenessProbe:
+            periodSeconds: 5
+            httpGet:
+              path: "/_healthz"
+              port: {{ .Values.recommendationservice.port }}
+
+          resources:
+            requests:
+              cpu: {{ .Values.recommendationservice.resources.requests.cpu }}
+              memory: {{ .Values.recommendationservice.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.recommendationservice.resources.limits.cpu }}
+              memory: {{ .Values.recommendationservice.resources.limits.memory }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.recommendationservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.recommendationservice.name }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Values.recommendationservice.name }}
+  ports:
+    - name: http
+      port: {{ .Values.recommendationservice.port }}
+      targetPort: {{ .Values.recommendationservice.port }}

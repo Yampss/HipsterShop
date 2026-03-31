@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.productcatalogservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.productcatalogservice.name }}
+spec:
+  replicas: {{ .Values.productcatalogservice.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.productcatalogservice.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.productcatalogservice.name }}
+    spec:
+      terminationGracePeriodSeconds: 5
+      containers:
+        - name: server
+          image: {{ .Values.productcatalogservice.image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: {{ .Values.productcatalogservice.port }}
+
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.configmap.name }}
+
+          env:
+            - name: PORT
+              value: "{{ .Values.productcatalogservice.port }}"
+
+            - name: MONGO_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.secretName }}
+                  key: {{ .Values.mongodb.catalogUsernameKey }}
+
+            - name: MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.secretName }}
+                  key: {{ .Values.mongodb.catalogPasswordKey }}
+
+            - name: MONGO_DATABASE
+              value: "{{ .Values.productcatalogservice.mongo.database }}"
+
+            - name: MONGO_PRODUCTS_COLLECTION
+              value: "{{ .Values.productcatalogservice.mongo.collection }}"
+
+            - name: PRODUCTS_FALLBACK_LOCAL
+              value: "{{ .Values.productcatalogservice.mongo.fallback }}"
+
+            - name: MONGO_URI
+              value: "{{ .Values.productcatalogservice.mongo.uri }}"
+
+          readinessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            httpGet:
+              path: "/_healthz"
+              port: {{ .Values.productcatalogservice.port }}
+
+          livenessProbe:
+            initialDelaySeconds: 40
+            failureThreshold: 6
+            periodSeconds: 5
+            httpGet:
+              path: "/_healthz"
+              port: {{ .Values.productcatalogservice.port }}
+
+          resources:
+            requests:
+              cpu: {{ .Values.productcatalogservice.resources.requests.cpu }}
+              memory: {{ .Values.productcatalogservice.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.productcatalogservice.resources.limits.cpu }}
+              memory: {{ .Values.productcatalogservice.resources.limits.memory }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.productcatalogservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.productcatalogservice.name }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Values.productcatalogservice.name }}
+  ports:
+    - name: http
+      port: {{ .Values.productcatalogservice.port }}
+      targetPort: {{ .Values.productcatalogservice.port }}
+

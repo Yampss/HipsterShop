@@ -1,0 +1,125 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.cartservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.cartservice.name }}
+spec:
+  replicas: {{ .Values.cartservice.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.cartservice.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.cartservice.name }}
+    spec:
+      terminationGracePeriodSeconds: 5
+
+      initContainers:
+        - name: wait-for-cart-mongo-auth
+          image: {{ .Values.cartservice.initContainer.image }}
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.configmap.name }}
+          env:
+            - name: MONGO_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.secretName }}
+                  key: {{ .Values.mongodb.cartUsernameKey }}
+            - name: MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.secretName }}
+                  key: {{ .Values.mongodb.cartPasswordKey }}
+          command:
+            - bash
+            - -c
+            - |
+              set -e
+              echo "Waiting for cart Mongo auth to become ready..."
+              until mongosh "{{ .Values.cartservice.mongo.uri }}" --quiet --eval "db.adminCommand('ping').ok" | grep -q 1; do
+                echo "Cart Mongo auth not ready yet. Retrying in 3s..."
+                sleep 3
+              done
+              echo "Cart Mongo auth ready."
+
+      containers:
+        - name: server
+          image: {{ .Values.cartservice.image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: {{ .Values.cartservice.port }}
+
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.configmap.name }}
+
+          env:
+            - name: OTEL_SDK_DISABLED
+              value: "{{ .Values.cartservice.otelDisabled }}"
+
+            - name: DISABLE_TRACING
+              value: "{{ .Values.cartservice.disableTracing }}"
+
+            - name: ASPNETCORE_HTTP_PORTS
+              value: "{{ .Values.cartservice.port }}"
+
+            - name: MONGO_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.secretName }}
+                  key: {{ .Values.mongodb.cartUsernameKey }}
+
+            - name: MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.secretName }}
+                  key: {{ .Values.mongodb.cartPasswordKey }}
+
+            - name: MONGO_DATABASE
+              value: "{{ .Values.cartservice.mongo.database }}"
+
+            - name: MONGO_URI
+              value: "{{ .Values.cartservice.mongo.uri }}"
+
+          resources:
+            requests:
+              cpu: {{ .Values.cartservice.resources.requests.cpu }}
+              memory: {{ .Values.cartservice.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.cartservice.resources.limits.cpu }}
+              memory: {{ .Values.cartservice.resources.limits.memory }}
+
+          readinessProbe:
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 6
+            tcpSocket:
+              port: {{ .Values.cartservice.port }}
+
+          livenessProbe:
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 6
+            tcpSocket:
+              port: {{ .Values.cartservice.port }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.cartservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.cartservice.name }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Values.cartservice.name }}
+  ports:
+    - name: http
+      port: {{ .Values.cartservice.port }}
+      targetPort: {{ .Values.cartservice.port }}

@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.checkoutservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.checkoutservice.name }}
+spec:
+  replicas: {{ .Values.checkoutservice.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.checkoutservice.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.checkoutservice.name }}
+    spec:
+      containers:
+        - name: server
+          image: {{ .Values.checkoutservice.image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: {{ .Values.checkoutservice.port }}
+
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.configmap.name }}
+
+          env:
+            - name: PORT
+              value: "{{ .Values.checkoutservice.port }}"
+
+            - name: PRODUCT_CATALOG_SERVICE_ADDR
+              value: "{{ .Values.checkoutservice.services.productCatalog }}"
+
+            - name: SHIPPING_SERVICE_ADDR
+              value: "{{ .Values.checkoutservice.services.shipping }}"
+
+            - name: PAYMENT_SERVICE_ADDR
+              value: "{{ .Values.checkoutservice.services.payment }}"
+
+            - name: EMAIL_SERVICE_ADDR
+              value: "{{ .Values.checkoutservice.services.email }}"
+
+            - name: CURRENCY_SERVICE_ADDR
+              value: "{{ .Values.checkoutservice.services.currency }}"
+
+            - name: CART_SERVICE_ADDR
+              value: "{{ .Values.checkoutservice.services.cart }}"
+
+            - name: ORDER_MONGO_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.secretName }}
+                  key: {{ .Values.mongodb.orderUsernameKey }}
+
+            - name: ORDER_MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.secretName }}
+                  key: {{ .Values.mongodb.orderPasswordKey }}
+
+            - name: ORDER_MONGO_URI
+              value: "{{ .Values.checkoutservice.mongo.uri }}"
+
+            - name: MONGO_DATABASE
+              value: "{{ .Values.checkoutservice.mongo.database }}"
+
+            - name: MONGO_ORDERS_COLLECTION
+              value: "{{ .Values.checkoutservice.mongo.ordersCollection }}"
+
+            - name: MONGO_ORDER_EVENTS_COLLECTION
+              value: "{{ .Values.checkoutservice.mongo.eventsCollection }}"
+
+          readinessProbe:
+            httpGet:
+              path: "/_healthz"
+              port: {{ .Values.checkoutservice.port }}
+
+          livenessProbe:
+            httpGet:
+              path: "/_healthz"
+              port: {{ .Values.checkoutservice.port }}
+
+          resources:
+            requests:
+              cpu: {{ .Values.checkoutservice.resources.requests.cpu }}
+              memory: {{ .Values.checkoutservice.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.checkoutservice.resources.limits.cpu }}
+              memory: {{ .Values.checkoutservice.resources.limits.memory }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.checkoutservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.checkoutservice.name }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Values.checkoutservice.name }}
+  ports:
+    - name: http
+      port: {{ .Values.checkoutservice.port }}
+      targetPort: {{ .Values.checkoutservice.port }}
+

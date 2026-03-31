@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.configmap.name }}
+  namespace: {{ .Values.namespace }}
+data:
+  ENABLE_TRACING: "{{ .Values.configmap.data.ENABLE_TRACING }}"
+  COLLECTOR_SERVICE_ADDR: "{{ .Values.configmap.data.COLLECTOR_SERVICE_ADDR }}"
+  FRONTEND_MESSAGE: "{{ .Values.configmap.data.FRONTEND_MESSAGE }}"
+  ENABLE_ASSISTANT: "{{ .Values.configmap.data.ENABLE_ASSISTANT }}"
+

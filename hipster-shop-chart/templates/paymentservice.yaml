@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.paymentservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.paymentservice.name }}
+spec:
+  replicas: {{ .Values.paymentservice.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.paymentservice.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.paymentservice.name }}
+    spec:
+      terminationGracePeriodSeconds: 5
+      containers:
+        - name: server
+          image: {{ .Values.paymentservice.image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: {{ .Values.paymentservice.port }}
+
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.configmap.name }}
+
+          env:
+            - name: PORT
+              value: "{{ .Values.paymentservice.port }}"
+
+            - name: DISABLE_PROFILER
+              value: "{{ .Values.paymentservice.disableProfiler }}"
+
+            - name: PAYMENT_MONGO_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.secretName }}
+                  key: {{ .Values.mongodb.paymentUsernameKey }}
+
+            - name: PAYMENT_MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.secretName }}
+                  key: {{ .Values.mongodb.paymentPasswordKey }}
+
+            - name: PAYMENT_MONGO_URI
+              value: "{{ .Values.paymentservice.mongo.uri }}"
+
+            - name: MONGO_DATABASE
+              value: "{{ .Values.paymentservice.mongo.database }}"
+
+            - name: MONGO_PAYMENTS_COLLECTION
+              value: "{{ .Values.paymentservice.mongo.collection }}"
+
+          readinessProbe:
+            httpGet:
+              path: "/_healthz"
+              port: {{ .Values.paymentservice.port }}
+
+          livenessProbe:
+            httpGet:
+              path: "/_healthz"
+              port: {{ .Values.paymentservice.port }}
+
+          resources:
+            requests:
+              cpu: {{ .Values.paymentservice.resources.requests.cpu }}
+              memory: {{ .Values.paymentservice.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.paymentservice.resources.limits.cpu }}
+              memory: {{ .Values.paymentservice.resources.limits.memory }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.paymentservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.paymentservice.name }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Values.paymentservice.name }}
+  ports:
+    - name: grpc
+      port: {{ .Values.paymentservice.port }}
+      targetPort: {{ .Values.paymentservice.port }}

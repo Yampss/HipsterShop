@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.currencyservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.currencyservice.name }}
+spec:
+  replicas: {{ .Values.currencyservice.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.currencyservice.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.currencyservice.name }}
+    spec:
+      terminationGracePeriodSeconds: 5
+      containers:
+        - name: server
+          image: {{ .Values.currencyservice.image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: {{ .Values.currencyservice.port }}
+
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.configmap.name }}
+
+          env:
+            - name: PORT
+              value: "{{ .Values.currencyservice.port }}"
+            - name: DISABLE_PROFILER
+              value: "{{ .Values.currencyservice.disableProfiler }}"
+
+          readinessProbe:
+            httpGet:
+              path: "/_healthz"
+              port: {{ .Values.currencyservice.port }}
+
+          livenessProbe:
+            httpGet:
+              path: "/_healthz"
+              port: {{ .Values.currencyservice.port }}
+
+          resources:
+            requests:
+              cpu: {{ .Values.currencyservice.resources.requests.cpu }}
+              memory: {{ .Values.currencyservice.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.currencyservice.resources.limits.cpu }}
+              memory: {{ .Values.currencyservice.resources.limits.memory }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.currencyservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.currencyservice.name }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Values.currencyservice.name }}
+  ports:
+    - name: http
+      port: {{ .Values.currencyservice.port }}
+      targetPort: {{ .Values.currencyservice.port }}
+

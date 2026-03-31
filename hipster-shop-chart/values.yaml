@@ -1,0 +1,335 @@
+namespace: hipster
+
+# ---------------- CONFIG ----------------
+configmap:
+  name: hipster-config
+  data:
+    ENABLE_TRACING: "1"
+    COLLECTOR_SERVICE_ADDR: "jaeger:4317"
+    FRONTEND_MESSAGE: "Checkout HipsterShop today!"
+    ENABLE_ASSISTANT: "true"
+
+# ---------------- OBSERVABILITY ----------------
+jaeger:
+  name: jaeger
+  replicas: 1
+  image: jaegertracing/all-in-one:latest
+  collectorOtlpEnabled: "true"
+  ports:
+    ui: 16686
+    otlpGrpc: 4317
+    otlpHttp: 4318
+  service:
+    type: ClusterIP
+
+# ---------------- GLOBAL MONGODB ----------------
+mongodb:
+  secretName: mongo-app-secret
+
+  rootSecretName: mongo-secret
+  rootUsernameKey: MONGO_ROOT_USERNAME
+  rootPasswordKey: MONGO_ROOT_PASSWORD
+
+  catalogUsernameKey: CATALOG_MONGO_USERNAME
+  catalogPasswordKey: CATALOG_MONGO_PASSWORD
+
+  authUsernameKey: AUTH_MONGO_USERNAME
+  authPasswordKey: AUTH_MONGO_PASSWORD
+
+  cartUsernameKey: CART_MONGO_USERNAME
+  cartPasswordKey: CART_MONGO_PASSWORD
+
+  notificationUsernameKey: NOTIFICATION_MONGO_USERNAME
+  notificationPasswordKey: NOTIFICATION_MONGO_PASSWORD
+
+  analyticsUsernameKey: ANALYTICS_MONGO_USERNAME
+  analyticsPasswordKey: ANALYTICS_MONGO_PASSWORD
+
+  paymentUsernameKey: PAYMENT_MONGO_USERNAME
+  paymentPasswordKey: PAYMENT_MONGO_PASSWORD
+
+  orderUsernameKey: ORDER_MONGO_USERNAME
+  orderPasswordKey: ORDER_MONGO_PASSWORD
+
+# ---------------- SERVICES ----------------
+
+adservice:
+  name: adservice
+  replicas: 1
+  image: cazzzzz/trf-adservice-hipster:latest
+  port: 9555
+  resources:
+    requests: { cpu: 200m, memory: 180Mi }
+    limits: { cpu: 300m, memory: 512Mi }
+
+currencyservice:
+  name: currencyservice
+  replicas: 1
+  image: cazzzzz/trf-currencyservice-hipster:latest
+  port: 7000
+  disableProfiler: "1"
+  resources:
+    requests: { cpu: 100m, memory: 64Mi }
+    limits: { cpu: 200m, memory: 128Mi }
+
+productcatalogservice:
+  name: productcatalogservice
+  replicas: 1
+  image: cazzzzz/trf-productcatalogservice-hipster:v1
+  port: 3550
+  mongo:
+    database: catalog_db
+    collection: products
+    fallback: "true"
+    uri: mongodb://$(MONGO_USERNAME):$(MONGO_PASSWORD)@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/catalog_db?replicaSet=rs0&authSource=catalog_db&authMechanism=SCRAM-SHA-256
+  resources:
+    requests: { cpu: 100m, memory: 64Mi }
+    limits: { cpu: 200m, memory: 128Mi }
+
+assistantservice:
+  name: assistantservice
+  replicas: 1
+  image: cazzzzz/trf-assistantservice-hipster:latest
+  port: 8080
+  gatewayAddr: hipstershop-gateway.hipster.svc.cluster.local:80
+  gemini:
+    model: gemini-2.5-flash
+    secretName: gemini-api
+    secretKey: GEMINI_API_KEY
+  resources:
+    requests: { cpu: 100m, memory: 64Mi }
+    limits: { cpu: 200m, memory: 128Mi }
+
+authservice:
+  name: authservice
+  replicas: 1
+  image: cazzzzz/trf-authservice-hipster:latest
+  port: 8081
+  initContainer:
+    image: mongo:7.0
+  mongo:
+    database: auth_db
+    uri: mongodb://$(MONGO_USERNAME):$(MONGO_PASSWORD)@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/auth_db?replicaSet=rs0&authSource=auth_db&authMechanism=SCRAM-SHA-256
+  jwt:
+    secretName: jwt-secret
+    secretKey: JWT_SECRET
+    secretValue: team4hipstershopsecret
+  resources:
+    requests: { cpu: 100m, memory: 64Mi }
+    limits: { cpu: 200m, memory: 128Mi }
+
+cartservice:
+  name: cartservice
+  replicas: 1
+  image: cazzzzz/trf-cartservice-hipster:v1
+  port: 7070
+  initContainer:
+    image: mongo:7.0
+  mongo:
+    database: cart_db
+    uri: mongodb://$(MONGO_USERNAME):$(MONGO_PASSWORD)@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/cart_db?replicaSet=rs0&authSource=cart_db&authMechanism=SCRAM-SHA-256
+  resources:
+    requests: { cpu: 200m, memory: 256Mi }
+    limits: { cpu: 300m, memory: 512Mi }
+
+emailservice:
+  name: emailservice
+  replicas: 1
+  image: cazzzzz/trf-emailservice-hipster:latest
+  port: 8080
+  mongo:
+    database: notification_db
+    collection: email_events
+    uri: mongodb://$(EMAIL_MONGO_USERNAME):$(EMAIL_MONGO_PASSWORD)@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/notification_db?replicaSet=rs0&authSource=notification_db&authMechanism=SCRAM-SHA-256
+  resources:
+    requests: { cpu: 100m, memory: 64Mi }
+    limits: { cpu: 200m, memory: 128Mi }
+
+recommendationservice:
+  name: recommendationservice
+  replicas: 1
+  image: cazzzzz/trf-recommendationservice-hipster:latest
+  port: 8080
+  productCatalogAddr: productcatalogservice:3550
+  mongo:
+    database: analytics_db
+    collection: recommendations
+    uri: mongodb://$(ANALYTICS_MONGO_USERNAME):$(ANALYTICS_MONGO_PASSWORD)@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/analytics_db?replicaSet=rs0&authSource=analytics_db&authMechanism=SCRAM-SHA-256
+  resources:
+    requests: { cpu: 100m, memory: 220Mi }
+    limits: { cpu: 200m, memory: 450Mi }
+
+paymentservice:
+  name: paymentservice
+  replicas: 1
+  image: cazzzzz/trf-paymentservice-hipster:latest
+  port: 50051
+  disableProfiler: "1"
+  mongo:
+    database: payment_db
+    collection: charges
+    uri: mongodb://$(PAYMENT_MONGO_USERNAME):$(PAYMENT_MONGO_PASSWORD)@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/payment_db?replicaSet=rs0&authSource=payment_db&authMechanism=SCRAM-SHA-256
+  resources:
+    requests: { cpu: 100m, memory: 64Mi }
+    limits: { cpu: 200m, memory: 128Mi }
+
+checkoutservice:
+  name: checkoutservice
+  replicas: 1
+  image: cazzzzz/trf-checkoutservice-hipster:latest
+  port: 5050
+  services:
+    productCatalog: productcatalogservice:3550
+    shipping: shippingservice:50051
+    payment: paymentservice:50051
+    email: emailservice:8080
+    currency: currencyservice:7000
+    cart: cartservice:7070
+  mongo:
+    database: order_db
+    ordersCollection: orders
+    eventsCollection: order_events
+    uri: mongodb://$(ORDER_MONGO_USERNAME):$(ORDER_MONGO_PASSWORD)@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/order_db?replicaSet=rs0&authSource=order_db&authMechanism=SCRAM-SHA-256
+  resources:
+    requests: { cpu: 100m, memory: 64Mi }
+    limits: { cpu: 200m, memory: 128Mi }
+
+shippingservice:
+  name: shippingservice
+  replicas: 1
+  image: cazzzzz/trf-shippingservice-hipster:latest
+  port: 50051
+  resources:
+    requests: { cpu: 100m, memory: 64Mi }
+    limits: { cpu: 200m, memory: 128Mi }
+
+frontend:
+  name: frontend
+  replicas: 1
+  image: cazzzzz/trf-frontend-hipster:v2
+  port: 8080
+  gatewayAddr: hipstershop-gateway.hipster.svc.cluster.local
+  jwt:
+    secretName: jwt-secret
+    secretKey: JWT_SECRET
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    requests: { cpu: 100m, memory: 64Mi }
+    limits: { cpu: 200m, memory: 128Mi }
+
+# ---------------- GATEWAY ----------------
+gatewayClass:
+  name: kgateway
+  controllerName: kgateway.dev/kgateway
+
+gateway:
+  name: hipstershop-gateway
+  label: hipstershop
+  className: kgateway
+  port: 80
+  allowedRoutes: Same
+
+# ---------------- SECRETS ----------------
+gemini:
+  secretName: gemini-api
+  secretKey: GEMINI_API_KEY
+  apiKey: ""
+
+# ---------------- ROUTES ----------------
+routes:
+  ad:
+    name: ad-route
+    path: /api/ads
+    rewrite: /ads
+
+  assistant:
+    name: assistant-route
+    path: /api/assistant/chat
+
+  auth:
+    name: auth-route
+    endpoints:
+      - path: /api/auth/login
+        rewrite: /login
+      - path: /api/auth/signup
+        rewrite: /signup
+      - path: /api/auth/logout
+        rewrite: /logout
+      - path: /api/auth/me
+        rewrite: /me
+
+  cart:
+    name: cart-route
+    path: /api/cart
+    rewrite: /cart
+
+  checkout:
+    name: checkout-route
+    path: /api/checkout
+    rewrite: /checkout
+
+  currency:
+    name: currency-route
+    endpoints:
+      - path: /api/currency/currencies
+        rewrite: /currencies
+      - path: /api/currency/convert
+        rewrite: /convert
+
+  email:
+    name: email-route
+    path: /api/email/send-confirmation
+    rewrite: /send-confirmation
+
+  frontend:
+    name: frontend-route
+    rules:
+      - type: PathPrefix
+        path: /static/
+      - type: Exact
+        path: /_healthz
+      - type: PathPrefix
+        path: /product
+      - type: PathPrefix
+        path: /cart
+      - type: Exact
+        path: /setCurrency
+      - type: Exact
+        path: /login
+      - type: Exact
+        path: /signup
+      - type: Exact
+        path: /logout
+      - type: Exact
+        path: /
+
+  payment:
+    name: payment-route
+    path: /api/payment/charge
+    rewrite: /charge
+
+  productcatalog:
+    name: productcatalog-route
+    rules:
+      - type: PathPrefix
+        path: /api/products/
+        rewriteType: ReplacePrefixMatch
+        rewrite: /products/
+      - type: Exact
+        path: /api/products
+        rewriteType: ReplaceFullPath
+        rewrite: /products
+
+  recommendation:
+    name: recommendation-route
+    path: /api/recommendations
+    rewrite: /recommendations
+
+  shipping:
+    name: shipping-route
+    path: /api/shipping
+    rewrite: /
+
+

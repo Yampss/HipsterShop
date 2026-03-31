@@ -1,0 +1,28 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ .Values.routes.ad.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.adservice.name }}
+spec:
+  parentRefs:
+    - name: {{ .Values.gateway.name }}
+
+  rules:
+    - matches:
+        - path:
+            type: Exact
+            value: {{ .Values.routes.ad.path }}
+
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplaceFullPath
+              replaceFullPath: {{ .Values.routes.ad.rewrite }}
+
+      backendRefs:
+        - name: {{ .Values.adservice.name }}
+          port: {{ .Values.adservice.port }}
+
