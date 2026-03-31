@@ -37,7 +37,7 @@ metadata:
   labels:
     app: jaeger
 spec:
-  type: ClusterIP
+  type: NodePort
   selector:
     app: jaeger
   ports:
@@ -50,3 +50,4 @@ spec:
   - name: frontend
     port: 16686
     targetPort: 16686
+    nodePort: 30686
