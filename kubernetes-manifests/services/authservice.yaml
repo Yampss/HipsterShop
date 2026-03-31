@@ -66,6 +66,10 @@ spec:
         - configMapRef:
             name: hipster-config
         env:
+        - name: MONGODB_HOST
+          value: "mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017"
+        - name: MONGODB_REPLICA_SET
+          value: "rs0"
         - name: AUTH_MONGO_USERNAME
           valueFrom:
             secretKeyRef:
@@ -81,11 +85,6 @@ spec:
             configMapKeyRef:
               name: mongodb-config
               key: AUTH_DB_NAME
-        - name: MONGO_URI
-          valueFrom:
-            configMapKeyRef:
-              name: database-config
-              key: AUTH_MONGO_URI
         - name: JWT_SECRET
           valueFrom:
             secretKeyRef:

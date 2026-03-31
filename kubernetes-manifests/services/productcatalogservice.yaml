@@ -35,6 +35,10 @@ spec:
             configMapKeyRef:
               name: service-ports
               key: PRODUCTCATALOG_PORT
+        - name: MONGODB_HOST
+          value: "mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017"
+        - name: MONGODB_REPLICA_SET
+          value: "rs0"
         - name: CATALOG_MONGO_USERNAME
           valueFrom:
             secretKeyRef:
@@ -57,11 +61,6 @@ spec:
               key: CATALOG_PRODUCTS_COLLECTION
         - name: PRODUCTS_FALLBACK_LOCAL
           value: "true"
-        - name: MONGO_URI
-          valueFrom:
-            configMapKeyRef:
-              name: database-config
-              key: CATALOG_MONGO_URI
         readinessProbe:
           initialDelaySeconds: 20
           periodSeconds: 5

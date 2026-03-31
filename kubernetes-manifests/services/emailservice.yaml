@@ -35,6 +35,10 @@ spec:
             configMapKeyRef:
               name: service-ports
               key: EMAILSERVICE_PORT
+        - name: MONGODB_HOST
+          value: "mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017"
+        - name: MONGODB_REPLICA_SET
+          value: "rs0"
         - name: EMAIL_MONGO_USERNAME
           valueFrom:
             secretKeyRef:
@@ -45,11 +49,6 @@ spec:
             secretKeyRef:
               name: mongodb-users
               key: NOTIFICATION_MONGO_PASSWORD
-        - name: EMAIL_MONGO_URI
-          valueFrom:
-            configMapKeyRef:
-              name: database-config
-              key: EMAIL_MONGO_URI
         - name: MONGO_DATABASE
           valueFrom:
             configMapKeyRef:

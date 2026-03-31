@@ -6,7 +6,7 @@ resources:
  - base/secrets.yaml
  - base/configmaps.yaml
  - database/secrets.yaml
- - database/database-config.yaml
+
  - database/mongodb.yaml
  - services/adservice.yaml
  - services/authservice.yaml
