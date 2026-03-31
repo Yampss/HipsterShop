@@ -1,39 +1,5 @@
 ---
 apiVersion: v1
-kind: Secret
-metadata:
-  namespace: {{ .Values.namespace }}
-  name: {{ .Values.mongodb.secretName }}
-type: Opaque
-stringData:
-  MONGO_ROOT_USERNAME: admin
-  MONGO_ROOT_PASSWORD: mongopassword
-
----
-apiVersion: v1
-kind: Secret
-metadata:
-  namespace: {{ .Values.namespace }}
-  name: {{ .Values.mongodb.appSecretName }}
-type: Opaque
-stringData:
-  AUTH_MONGO_USERNAME: auth_user
-  AUTH_MONGO_PASSWORD: auth_password
-  CART_MONGO_USERNAME: cart_user
-  CART_MONGO_PASSWORD: cart_password
-  CATALOG_MONGO_USERNAME: catalog_user
-  CATALOG_MONGO_PASSWORD: catalog_password
-  ORDER_MONGO_USERNAME: order_user
-  ORDER_MONGO_PASSWORD: order_password
-  PAYMENT_MONGO_USERNAME: payment_user
-  PAYMENT_MONGO_PASSWORD: payment_password
-  NOTIFICATION_MONGO_USERNAME: notification_user
-  NOTIFICATION_MONGO_PASSWORD: notification_password
-  ANALYTICS_MONGO_USERNAME: analytics_user
-  ANALYTICS_MONGO_PASSWORD: analytics_password
-
----
-apiVersion: v1
 kind: Service
 metadata:
   namespace: {{ .Values.namespace }}
@@ -98,13 +64,13 @@ spec:
         - name: MONGO_INITDB_ROOT_USERNAME
           valueFrom:
             secretKeyRef:
-              name: {{ .Values.mongodb.secretName }}
-              key: {{ .Values.mongodb.MONGO_ROOT_USERNAME_KEY }}
+              name: {{ .Values.mongodb.rootSecretName }}
+              key: {{ .Values.mongodb.rootUsernameKey }}
         - name: MONGO_INITDB_ROOT_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: {{ .Values.mongodb.secretName }}
-              key: {{ .Values.mongodb.MONGO_ROOT_PASSWORD_KEY }}
+              name: {{ .Values.mongodb.rootSecretName }}
+              key: {{ .Values.mongodb.rootPasswordKey }}
         - name: MONGO_INITDB_DATABASE
           value: {{ .Values.mongodb.initDatabase | quote }}
         volumeMounts:
@@ -426,61 +392,5 @@ spec:
 
             print("Seed complete. Product count: " + coll.countDocuments({}));
           '
-
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  namespace: hipster
-  name: mongo-migrate-shopdb-data
-spec:
-  backoffLimit: 10
-  template:
-    spec:
-      restartPolicy: OnFailure
-      containers:
-      - name: mongo-migrate-shopdb-data
-        image: mongo:7.0
-        env:
-        - name: MONGO_ROOT_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: mongo-secret
-              key: MONGO_ROOT_USERNAME
-        - name: MONGO_ROOT_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: mongo-secret
-              key: MONGO_ROOT_PASSWORD
-        command:
-        - bash
-        - -c
-        - |
-          set -e
-
-          check_primary() {
-            mongosh "mongodb://$MONGO_ROOT_USERNAME:$MONGO_ROOT_PASSWORD@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/admin?replicaSet=rs0&authSource=admin" --quiet --eval "db.hello().isWritablePrimary" | grep -q true
-          }
-
-          echo "Waiting for writable MongoDB primary for migration..."
-          until check_primary; do
-            echo "No writable primary yet. Retrying in 3s..."
-            sleep 3
-          done
-
-          mongosh "mongodb://$MONGO_ROOT_USERNAME:$MONGO_ROOT_PASSWORD@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/admin?replicaSet=rs0&authSource=admin" --eval '
-            function migrateCollection(sourceDbName, sourceCollName, targetDbName, targetCollName, keyField) {
-              var source = db.getSiblingDB(sourceDbName).getCollection(sourceCollName);
-              var target = db.getSiblingDB(targetDbName).getCollection(targetCollName);
-              var docs = source.find({}).toArray();
-              docs.forEach(function(doc) {
-                var query = {};
-                query[keyField] = doc[keyField];
-                target.updateOne(query, { $set: doc }, { upsert: true });
-              });
-              print("Migrated " + docs.length + " docs from " + sourceDbName + "." + sourceCollName + " to " + targetDbName + "." + targetCollName);
-            }
-
-            migrateCollection("shopdb", "users", "auth_db", "users", "email");
             migrateCollection("shopdb", "carts", "cart_db", "carts", "_id");
           '

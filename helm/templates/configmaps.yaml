@@ -40,3 +40,45 @@ data:
   {{ $key }}: {{ $value | quote }}
   {{- end }}
 
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.databaseConfig.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: hipster-shop
+    app.kubernetes.io/component: database-config
+data:
+  {{- range $key, $value := .Values.databaseConfig.data }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.mongodbConfig.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: hipster-shop
+    app.kubernetes.io/component: mongodb-config
+data:
+  {{- range $key, $value := .Values.mongodbConfig.data }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.appFeatures.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: hipster-shop
+    app.kubernetes.io/component: app-features
+data:
+  {{- range $key, $value := .Values.appFeatures.data }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
+
