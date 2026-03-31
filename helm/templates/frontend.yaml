@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.frontend.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.frontend.name }}
+    app.kubernetes.io/name: hipster-shop
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: {{ .Values.frontend.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.frontend.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.frontend.name }}
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.frontend.terminationGracePeriodSeconds }}
+      containers:
+        - name: server
+          image: {{ .Values.frontend.image }}
+          imagePullPolicy: {{ .Values.frontend.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.frontend.port }}
+              name: http
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.configmap.name }}
+          env:
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.servicePortsConfig.name }}
+                  key: FRONTEND_PORT
+            - name: GATEWAY_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.serviceAddressesConfig.name }}
+                  key: GATEWAY_ADDR
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.frontend.jwt.secretName }}
+                  key: {{ .Values.frontend.jwt.secretKey }}
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.frontend.healthcheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.frontend.healthcheck.periodSeconds }}
+            timeoutSeconds: {{ .Values.frontend.healthcheck.timeoutSeconds }}
+            httpGet:
+              path: {{ .Values.frontend.healthcheck.path }}
+              port: {{ .Values.frontend.port }}
+              {{- if .Values.frontend.healthcheck.httpHeaders }}
+              httpHeaders:
+                {{- toYaml .Values.frontend.healthcheck.httpHeaders | nindent 16 }}
+              {{- end }}
+          livenessProbe:
+            initialDelaySeconds: {{ .Values.frontend.healthcheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.frontend.healthcheck.periodSeconds }}
+            timeoutSeconds: {{ .Values.frontend.healthcheck.timeoutSeconds }}
+            httpGet:
+              path: {{ .Values.frontend.healthcheck.path }}
+              port: {{ .Values.frontend.port }}
+              {{- if .Values.frontend.healthcheck.httpHeaders }}
+              httpHeaders:
+                {{- toYaml .Values.frontend.healthcheck.httpHeaders | nindent 16 }}
+              {{- end }}
+          resources:
+            requests:
+              cpu: {{ .Values.frontend.resources.requests.cpu }}
+              memory: {{ .Values.frontend.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.frontend.resources.limits.cpu }}
+              memory: {{ .Values.frontend.resources.limits.memory }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.frontend.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.frontend.name }}
+    app.kubernetes.io/name: hipster-shop
+spec:
+  type: {{ .Values.frontend.service.type }}
+  selector:
+    app: {{ .Values.frontend.name }}
+  ports:
+    - name: http
+      port: {{ .Values.frontend.service.port }}
+      targetPort: {{ .Values.frontend.port }}
+

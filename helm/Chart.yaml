@@ -1,0 +1,31 @@
+apiVersion: v2
+name: hipster-shop-chart
+description: HipsterShop - Complete microservices application with MongoDB, Jaeger, and Kubernetes Gateway
+
+# Application charts are deployed; library charts are included as dependencies
+type: application
+
+# Chart version (increment on each change)
+version: 0.2.0
+
+# Application version deployed by this chart
+appVersion: "1.0.0"
+
+# Chart metadata
+maintainers:
+  - name: HipsterShop Team
+    email: team@hipstershop.local
+
+home: https://github.com/hipstershop
+sources:
+  - https://github.com/hipstershop/hipstershop
+
+keywords:
+  - microservices
+  - ecommerce
+  - mongodb
+  - kubernetes
+
+# Minimum Kubernetes version
+kubeVersion: ">=1.24.0"
+

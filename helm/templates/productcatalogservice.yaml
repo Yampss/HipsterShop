@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.productcatalogservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.productcatalogservice.name }}
+    app.kubernetes.io/name: hipster-shop
+spec:
+  replicas: {{ .Values.productcatalogservice.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.productcatalogservice.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.productcatalogservice.name }}
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.productcatalogservice.terminationGracePeriodSeconds }}
+      containers:
+        - name: server
+          image: {{ .Values.productcatalogservice.image }}
+          imagePullPolicy: {{ .Values.productcatalogservice.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.productcatalogservice.port }}
+              name: http
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.configmap.name }}
+          env:
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.servicePortsConfig.name }}
+                  key: PRODUCTCATALOGSERVICE_PORT
+            - name: MONGO_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.appSecretName }}
+                  key: {{ .Values.mongodb.catalogUsernameKey }}
+            - name: MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.appSecretName }}
+                  key: {{ .Values.mongodb.catalogPasswordKey }}
+            - name: MONGO_DATABASE
+              value: {{ .Values.productcatalogservice.mongo.database | quote }}
+            - name: MONGO_PRODUCTS_COLLECTION
+              value: {{ .Values.productcatalogservice.mongo.collection | quote }}
+            - name: PRODUCTS_FALLBACK_LOCAL
+              value: {{ .Values.productcatalogservice.mongo.fallback | quote }}
+            - name: MONGO_URI
+              value: "mongodb://$(MONGO_USERNAME):$(MONGO_PASSWORD)@{{ .Values.mongoHeadlessServiceFqdn }}/{{ .Values.productcatalogservice.mongo.database }}?replicaSet={{ .Values.mongodbReplicaSet }}&authSource={{ .Values.productcatalogservice.mongo.database }}&authMechanism={{ .Values.mongodbAuthMechanism }}"
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.productcatalogservice.healthcheck.initialDelaySeconds }}
+            periodSeconds: 5
+            httpGet:
+              path: {{ .Values.productcatalogservice.healthcheck.path }}
+              port: {{ .Values.productcatalogservice.port }}
+          livenessProbe:
+            initialDelaySeconds: {{ .Values.productcatalogservice.healthcheck.initialDelaySeconds }}
+            periodSeconds: 5
+            failureThreshold: 6
+            httpGet:
+              path: {{ .Values.productcatalogservice.healthcheck.path }}
+              port: {{ .Values.productcatalogservice.port }}
+          resources:
+            requests:
+              cpu: {{ .Values.productcatalogservice.resources.requests.cpu }}
+              memory: {{ .Values.productcatalogservice.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.productcatalogservice.resources.limits.cpu }}
+              memory: {{ .Values.productcatalogservice.resources.limits.memory }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.productcatalogservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.productcatalogservice.name }}
+    app.kubernetes.io/name: hipster-shop
+spec:
+  type: {{ .Values.productcatalogservice.service.type }}
+  selector:
+    app: {{ .Values.productcatalogservice.name }}
+  ports:
+    - name: http
+      port: {{ .Values.productcatalogservice.service.port }}
+      targetPort: {{ .Values.productcatalogservice.port }}
+

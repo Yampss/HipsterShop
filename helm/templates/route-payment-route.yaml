@@ -1,0 +1,30 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ .Values.routes.payment.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.paymentservice.name }}
+    app.kubernetes.io/name: hipster-shop
+    app.kubernetes.io/component: route
+spec:
+  parentRefs:
+    - name: {{ .Values.gateway.name }}
+
+  rules:
+    - matches:
+        - path:
+            type: Exact
+            value: {{ .Values.routes.payment.path }}
+
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplaceFullPath
+              replaceFullPath: {{ .Values.routes.payment.rewrite }}
+
+      backendRefs:
+        - name: {{ .Values.paymentservice.name }}
+          port: {{ .Values.paymentservice.service.port }}
+

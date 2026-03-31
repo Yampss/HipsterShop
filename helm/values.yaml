@@ -1,0 +1,604 @@
+namespace: hipster
+
+# Global image pull policy
+imagePullPolicy: IfNotPresent
+
+# Service domain (for FQDN references)
+serviceDomain: hipster.svc.cluster.local
+
+# The namespace where MongoDB is deployed
+mongodbNamespace: hipster
+
+# MongoDB configs
+mongoHeadlessServiceFqdn: mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017
+mongodbReplicaSet: rs0
+mongodbAuthMechanism: SCRAM-SHA-256
+
+# ---------------- CONFIG ----------------
+configmap:
+  name: hipster-config
+  data:
+    ENABLE_TRACING: "1"
+    COLLECTOR_SERVICE_ADDR: "jaeger:4317"
+    FRONTEND_MESSAGE: "Checkout HipsterShop today!"
+    ENABLE_ASSISTANT: "true"
+
+# Service ports and addresses ConfigMap
+servicePortsConfig:
+  name: service-ports
+  data:
+    ADSERVICE_PORT: "9555"
+    CURRENCYSERVICE_PORT: "7000"
+    PRODUCTCATALOGSERVICE_PORT: "3550"
+    ASSISTANTSERVICE_PORT: "8080"
+    AUTHSERVICE_PORT: "8081"
+    CARTSERVICE_PORT: "7070"
+    EMAILSERVICE_PORT: "8080"
+    RECOMMENDATIONSERVICE_PORT: "8080"
+    PAYMENTSERVICE_PORT: "50051"
+    CHECKOUTSERVICE_PORT: "5050"
+    SHIPPINGSERVICE_PORT: "50051"
+    FRONTEND_PORT: "8080"
+
+serviceAddressesConfig:
+  name: service-addresses
+  data:
+    GATEWAY_ADDR: "hipstershop-gateway.hipster.svc.cluster.local:80"
+    PRODUCTCATALOG_ADDR: "productcatalogservice:3550"
+    SHIPPING_ADDR: "shippingservice:50051"
+    PAYMENT_ADDR: "paymentservice:50051"
+    EMAIL_ADDR: "emailservice:8080"
+    CURRENCY_ADDR: "currencyservice:7000"
+    CART_ADDR: "cartservice:7070"
+    AD_ADDR: "adservice:9555"
+    RECOMMENDATION_ADDR: "recommendationservice:8080"
+
+# ---------------- OBSERVABILITY ----------------
+jaeger:
+  name: jaeger
+  replicas: 1
+  image: jaegertracing/all-in-one:latest
+  collectorOtlpEnabled: "true"
+  ports:
+    ui: 16686
+    otlpGrpc: 4317
+    otlpHttp: 4318
+  healthcheck:
+    path: /
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+  service:
+    type: ClusterIP
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# ---------------- GLOBAL MONGODB ----------------
+mongodb:
+  enabled: true
+  replicas: 3
+  image: mongo:7.0
+  imagePullPolicy: IfNotPresent
+  
+  # Service names
+  headlessServiceName: mongo-headless
+  serviceName: mongodb
+  
+  # Secrets
+  rootSecretName: mongo-secret
+  secretName: mongo-secret
+  appSecretName: mongo-app-secret
+  
+  # Root credentials
+  rootUsername: admin
+  rootPassword: mongopassword
+  rootUsernameKey: MONGO_ROOT_USERNAME
+  rootPasswordKey: MONGO_ROOT_PASSWORD
+  
+  # App user keys
+  authUsernameKey: AUTH_MONGO_USERNAME
+  authPasswordKey: AUTH_MONGO_PASSWORD
+  cartUsernameKey: CART_MONGO_USERNAME
+  cartPasswordKey: CART_MONGO_PASSWORD
+  catalogUsernameKey: CATALOG_MONGO_USERNAME
+  catalogPasswordKey: CATALOG_MONGO_PASSWORD
+  orderUsernameKey: ORDER_MONGO_USERNAME
+  orderPasswordKey: ORDER_MONGO_PASSWORD
+  paymentUsernameKey: PAYMENT_MONGO_USERNAME
+  paymentPasswordKey: PAYMENT_MONGO_PASSWORD
+  notificationUsernameKey: NOTIFICATION_MONGO_USERNAME
+  notificationPasswordKey: NOTIFICATION_MONGO_PASSWORD
+  analyticsUsernameKey: ANALYTICS_MONGO_USERNAME
+  analyticsPasswordKey: ANALYTICS_MONGO_PASSWORD
+  
+  # Job names
+  initJobName: mongo-init-replicaset
+  seedJobName: mongo-seed-products
+  
+  # MongoDB init database
+  initDatabase: shopdb
+  
+  # Storage configuration
+  storageClass: nfs
+  storage: 5Gi
+  
+  # Termination grace period
+  terminationGracePeriodSeconds: 30
+  
+  # Resources
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  
+
+# Secrets
+secrets:
+  appSecrets:
+    name: app-secrets
+    jwtSecret: "team4hipstershopsecret"
+    geminiApiKey: ""  # Replace with actual API key
+
+# ---------------- SERVICES ----------------
+
+adservice:
+  name: adservice
+  replicas: 1
+  image: cazzzzz/trf-adservice-hipster:latest
+  imagePullPolicy: IfNotPresent
+  port: 9555
+  service:
+    type: ClusterIP
+    port: 9555
+  terminationGracePeriodSeconds: 5
+  healthcheck:
+    path: "/_healthz"
+    initialDelaySeconds: 60
+    periodSeconds: 15
+    timeoutSeconds: 5
+  resources:
+    requests:
+      cpu: 200m
+      memory: 180Mi
+    limits:
+      cpu: 300m
+      memory: 512Mi
+
+currencyservice:
+  name: currencyservice
+  replicas: 1
+  image: cazzzzz/trf-currencyservice-hipster:latest
+  imagePullPolicy: IfNotPresent
+  port: 7000
+  service:
+    type: ClusterIP
+    port: 7000
+  terminationGracePeriodSeconds: 5
+  disableProfiler: "1"
+  healthcheck:
+    path: "/_healthz"
+    initialDelaySeconds: 60
+    periodSeconds: 15
+    timeoutSeconds: 5
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+productcatalogservice:
+  name: productcatalogservice
+  replicas: 1
+  image: cazzzzz/trf-productcatalogservice-hipster:v1
+  imagePullPolicy: IfNotPresent
+  port: 3550
+  service:
+    type: ClusterIP
+    port: 3550
+  terminationGracePeriodSeconds: 5
+  initWait: true
+  healthcheck:
+    path: "/_healthz"
+    initialDelaySeconds: 60
+    periodSeconds: 15
+    timeoutSeconds: 5
+  mongo:
+    database: catalog_db
+    collection: products
+    fallback: "true"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+assistantservice:
+  name: assistantservice
+  replicas: 1
+  image: cazzzzz/trf-assistantservice-hipster:latest
+  imagePullPolicy: IfNotPresent
+  port: 8080
+  service:
+    type: ClusterIP
+    port: 8080
+  terminationGracePeriodSeconds: 5
+  gatewayAddr: hipstershop-gateway.hipster.svc.cluster.local:80
+  healthcheck:
+    path: "/_healthz"
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+  gemini:
+    model: gemini-2.5-flash
+    secretName: app-secrets
+    secretKey: GEMINI_API_KEY
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+authservice:
+  name: authservice
+  replicas: 1
+  image: cazzzzz/trf-authservice-hipster:latest
+  imagePullPolicy: IfNotPresent
+  port: 8081
+  service:
+    type: ClusterIP
+    port: 8081
+  terminationGracePeriodSeconds: 5
+  initContainer:
+    image: mongo:7.0
+    imagePullPolicy: IfNotPresent
+  initWait: true
+  healthcheck:
+    path: "/_healthz"
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+  mongo:
+    database: auth_db
+  jwt:
+    secretName: app-secrets
+    secretKey: JWT_SECRET
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+cartservice:
+  name: cartservice
+  replicas: 1
+  image: cazzzzz/trf-cartservice-hipster:v1
+  imagePullPolicy: IfNotPresent
+  port: 7070
+  service:
+    type: ClusterIP
+    port: 7070
+  terminationGracePeriodSeconds: 5
+  initContainer:
+    image: mongo:7.0
+    imagePullPolicy: IfNotPresent
+  initWait: true
+  healthcheck:
+    path: "/_healthz"
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+  mongo:
+    database: cart_db
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 300m
+      memory: 512Mi
+
+emailservice:
+  name: emailservice
+  replicas: 1
+  image: cazzzzz/trf-emailservice-hipster:latest
+  imagePullPolicy: IfNotPresent
+  port: 8080
+  service:
+    type: ClusterIP
+    port: 8080
+  terminationGracePeriodSeconds: 5
+  healthcheck:
+    path: "/_healthz"
+    initialDelaySeconds: 30
+    periodSeconds: 15
+    timeoutSeconds: 5
+  mongo:
+    database: notification_db
+    collection: email_events
+    uri: "mongodb://$(EMAIL_MONGO_USERNAME):$(EMAIL_MONGO_PASSWORD)@{{ .Values.mongoHeadlessServiceFqdn }}/notification_db?replicaSet={{ .Values.mongodbReplicaSet }}&authSource=notification_db&authMechanism={{ .Values.mongodbAuthMechanism }}"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+recommendationservice:
+  name: recommendationservice
+  replicas: 1
+  image: cazzzzz/trf-recommendationservice-hipster:latest
+  imagePullPolicy: IfNotPresent
+  port: 8080
+  service:
+    type: ClusterIP
+    port: 8080
+  terminationGracePeriodSeconds: 30
+  productCatalogAddr: productcatalogservice:3550
+  healthcheck:
+    path: "/_healthz"
+    initialDelaySeconds: 30
+    periodSeconds: 15
+    timeoutSeconds: 5
+  mongo:
+    database: analytics_db
+    collection: recommendations
+    uri: "mongodb://$(ANALYTICS_MONGO_USERNAME):$(ANALYTICS_MONGO_PASSWORD)@{{ .Values.mongoHeadlessServiceFqdn }}/analytics_db?replicaSet={{ .Values.mongodbReplicaSet }}&authSource=analytics_db&authMechanism={{ .Values.mongodbAuthMechanism }}"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 220Mi
+    limits:
+      cpu: 200m
+      memory: 450Mi
+
+paymentservice:
+  name: paymentservice
+  replicas: 1
+  image: cazzzzz/trf-paymentservice-hipster:latest
+  imagePullPolicy: IfNotPresent
+  port: 50051
+  service:
+    type: ClusterIP
+    port: 50051
+  terminationGracePeriodSeconds: 5
+  disableProfiler: "1"
+  healthcheck:
+    path: "/_healthz"
+    initialDelaySeconds: 30
+    periodSeconds: 15
+    timeoutSeconds: 5
+  mongo:
+    database: payment_db
+    collection: charges
+    uri: "mongodb://$(PAYMENT_MONGO_USERNAME):$(PAYMENT_MONGO_PASSWORD)@{{ .Values.mongoHeadlessServiceFqdn }}/payment_db?replicaSet={{ .Values.mongodbReplicaSet }}&authSource=payment_db&authMechanism={{ .Values.mongodbAuthMechanism }}"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+checkoutservice:
+  name: checkoutservice
+  replicas: 1
+  image: cazzzzz/trf-checkoutservice-hipster:latest
+  imagePullPolicy: IfNotPresent
+  port: 5050
+  service:
+    type: ClusterIP
+    port: 5050
+  terminationGracePeriodSeconds: 5
+  services:
+    productCatalog: productcatalogservice:3550
+    shipping: shippingservice:50051
+    payment: paymentservice:50051
+    email: emailservice:8080
+    currency: currencyservice:7000
+    cart: cartservice:7070
+  healthcheck:
+    path: "/_healthz"
+    initialDelaySeconds: 30
+    periodSeconds: 15
+    timeoutSeconds: 5
+  mongo:
+    database: order_db
+    ordersCollection: orders
+    eventsCollection: order_events
+    uri: "mongodb://$(ORDER_MONGO_USERNAME):$(ORDER_MONGO_PASSWORD)@{{ .Values.mongoHeadlessServiceFqdn }}/order_db?replicaSet={{ .Values.mongodbReplicaSet }}&authSource=order_db&authMechanism={{ .Values.mongodbAuthMechanism }}"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+shippingservice:
+  name: shippingservice
+  replicas: 1
+  image: cazzzzz/trf-shippingservice-hipster:latest
+  imagePullPolicy: IfNotPresent
+  port: 50051
+  service:
+    type: ClusterIP
+    port: 50051
+  terminationGracePeriodSeconds: 5
+  healthcheck:
+    path: "/_healthz"
+    initialDelaySeconds: 60
+    periodSeconds: 15
+    timeoutSeconds: 5
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+frontend:
+  name: frontend
+  replicas: 1
+  image: cazzzzz/trf-frontend-hipster:v2
+  imagePullPolicy: IfNotPresent
+  port: 8080
+  service:
+    type: ClusterIP
+    port: 80
+  terminationGracePeriodSeconds: 30
+  gatewayAddr: hipstershop-gateway.hipster.svc.cluster.local:80
+  healthcheck:
+    path: "/_healthz"
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    httpHeaders:
+      - name: "Cookie"
+        value: "shop_session-id=x-healthz-check"
+  jwt:
+    secretName: app-secrets
+    secretKey: JWT_SECRET
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+# ---------------- GATEWAY ----------------
+gatewayClass:
+  name: kgateway
+  controllerName: kgateway.dev/kgateway
+
+gateway:
+  name: hipstershop-gateway
+  label: hipstershop
+  className: kgateway
+  port: 80
+  allowedRoutes: Same
+
+# ---------------- SECRETS ----------------
+gemini:
+  secretName: gemini-api
+  secretKey: GEMINI_API_KEY
+  apiKey: ""
+
+# ---------------- ROUTES ----------------
+routes:
+  ad:
+    name: ad-route
+    path: /api/ads
+    rewrite: /ads
+
+  assistant:
+    name: assistant-route
+    path: /api/assistant/chat
+
+  auth:
+    name: auth-route
+    endpoints:
+      - path: /api/auth/login
+        rewrite: /login
+      - path: /api/auth/signup
+        rewrite: /signup
+      - path: /api/auth/logout
+        rewrite: /logout
+      - path: /api/auth/me
+        rewrite: /me
+
+  cart:
+    name: cart-route
+    path: /api/cart
+    rewrite: /cart
+
+  checkout:
+    name: checkout-route
+    path: /api/checkout
+    rewrite: /checkout
+
+  currency:
+    name: currency-route
+    endpoints:
+      - path: /api/currency/currencies
+        rewrite: /currencies
+      - path: /api/currency/convert
+        rewrite: /convert
+
+  email:
+    name: email-route
+    path: /api/email/send-confirmation
+    rewrite: /send-confirmation
+
+  frontend:
+    name: frontend-route
+    rules:
+      - type: PathPrefix
+        path: /static/
+      - type: Exact
+        path: /_healthz
+      - type: PathPrefix
+        path: /product
+      - type: PathPrefix
+        path: /cart
+      - type: Exact
+        path: /setCurrency
+      - type: Exact
+        path: /login
+      - type: Exact
+        path: /signup
+      - type: Exact
+        path: /logout
+      - type: Exact
+        path: /
+
+  payment:
+    name: payment-route
+    path: /api/payment/charge
+    rewrite: /charge
+
+  productcatalog:
+    name: productcatalog-route
+    rules:
+      - type: PathPrefix
+        path: /api/products/
+        rewriteType: ReplacePrefixMatch
+        rewrite: /products/
+      - type: Exact
+        path: /api/products
+        rewriteType: ReplaceFullPath
+        rewrite: /products
+
+  recommendation:
+    name: recommendation-route
+    path: /api/recommendations
+    rewrite: /recommendations
+
+  shipping:
+    name: shipping-route
+    path: /api/shipping
+    rewrite: /
+
+# ---------------- PERSISTENT VOLUMES ----------------
+pv:
+  enabled: true
+  basePath: /mnt/data
+  reclaimPolicy: Retain

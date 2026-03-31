@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.jaeger.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.jaeger.name }}
+spec:
+  replicas: {{ .Values.jaeger.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.jaeger.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.jaeger.name }}
+        app.kubernetes.io/name: hipster-shop
+        app.kubernetes.io/component: tracing
+    spec:
+      containers:
+        - name: jaeger
+          image: {{ .Values.jaeger.image }}
+          imagePullPolicy: {{ .Values.jaeger.imagePullPolicy }}
+          env:
+            - name: COLLECTOR_OTLP_ENABLED
+              value: "{{ .Values.jaeger.collectorOtlpEnabled }}"
+          ports:
+            - containerPort: {{ .Values.jaeger.ports.ui }}
+              name: ui
+            - containerPort: {{ .Values.jaeger.ports.otlpGrpc }}
+              name: otlp-grpc
+            - containerPort: {{ .Values.jaeger.ports.otlpHttp }}
+              name: otlp-http
+
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.jaeger.healthcheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.jaeger.healthcheck.periodSeconds }}
+            timeoutSeconds: {{ .Values.jaeger.healthcheck.timeoutSeconds }}
+            httpGet:
+              path: /
+              port: {{ .Values.jaeger.ports.ui }}
+
+          livenessProbe:
+            initialDelaySeconds: {{ .Values.jaeger.healthcheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.jaeger.healthcheck.periodSeconds }}
+            timeoutSeconds: {{ .Values.jaeger.healthcheck.timeoutSeconds }}
+            httpGet:
+              path: /
+              port: {{ .Values.jaeger.ports.ui }}
+
+          resources:
+            requests:
+              cpu: {{ .Values.jaeger.resources.requests.cpu }}
+              memory: {{ .Values.jaeger.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.jaeger.resources.limits.cpu }}
+              memory: {{ .Values.jaeger.resources.limits.memory }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.jaeger.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.jaeger.name }}
+spec:
+  type: {{ .Values.jaeger.service.type }}
+  selector:
+    app: {{ .Values.jaeger.name }}
+  ports:
+    - name: otlp-grpc
+      port: {{ .Values.jaeger.ports.otlpGrpc }}
+      targetPort: {{ .Values.jaeger.ports.otlpGrpc }}
+    - name: otlp-http
+      port: {{ .Values.jaeger.ports.otlpHttp }}
+      targetPort: {{ .Values.jaeger.ports.otlpHttp }}
+    - name: frontend
+      port: {{ .Values.jaeger.ports.ui }}
+      targetPort: {{ .Values.jaeger.ports.ui }}
+

@@ -1,0 +1,118 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.authservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.authservice.name }}
+    app.kubernetes.io/name: hipster-shop
+spec:
+  replicas: {{ .Values.authservice.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.authservice.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.authservice.name }}
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.authservice.terminationGracePeriodSeconds }}
+      {{- if .Values.authservice.initWait }}
+      initContainers:
+        - name: wait-for-mongodb-primary
+          image: {{ .Values.authservice.initContainer.image }}
+          imagePullPolicy: {{ .Values.authservice.initContainer.imagePullPolicy }}
+          command:
+            - bash
+            - -c
+            - |
+              set -e
+              echo "Waiting for MongoDB replica set..."
+              for i in {1..30}; do
+                if mongosh mongodb://mongodb-0.mongo-headless.{{ .Values.namespace }}.svc.cluster.local:27017/?directConnection=true --eval "rs.status()" --quiet 2>/dev/null; then
+                  echo "MongoDB replica set is ready."
+                  exit 0
+                fi
+                echo "Attempt $i: MongoDB not ready yet. Retrying..."
+                sleep 2
+              done
+              echo "MongoDB replica set check failed, continuing anyway..."
+      {{- end}}
+
+      containers:
+        - name: server
+          image: {{ .Values.authservice.image }}
+          imagePullPolicy: {{ .Values.authservice.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.authservice.port }}
+              name: http
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.configmap.name }}
+          env:
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.servicePortsConfig.name }}
+                  key: AUTHSERVICE_PORT
+            - name: MONGO_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.appSecretName }}
+                  key: {{ .Values.mongodb.authUsernameKey }}
+            - name: MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.appSecretName }}
+                  key: {{ .Values.mongodb.authPasswordKey }}
+            - name: MONGO_DATABASE
+              value: {{ .Values.authservice.mongo.database | quote }}
+            - name: MONGO_URI
+              value: "mongodb://$(MONGO_USERNAME):$(MONGO_PASSWORD)@{{ .Values.mongoHeadlessServiceFqdn }}/{{ .Values.authservice.mongo.database }}?replicaSet={{ .Values.mongodbReplicaSet }}&authSource={{ .Values.authservice.mongo.database }}&authMechanism={{ .Values.mongodbAuthMechanism }}"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.frontend.jwt.secretName }}
+                  key: {{ .Values.frontend.jwt.secretKey }}
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.authservice.healthcheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.authservice.healthcheck.periodSeconds }}
+            timeoutSeconds: {{ .Values.authservice.healthcheck.timeoutSeconds }}
+            httpGet:
+              path: {{ .Values.authservice.healthcheck.path }}
+              port: {{ .Values.authservice.port }}
+          livenessProbe:
+            initialDelaySeconds: {{ .Values.authservice.healthcheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.authservice.healthcheck.periodSeconds }}
+            timeoutSeconds: {{ .Values.authservice.healthcheck.timeoutSeconds }}
+            httpGet:
+              path: {{ .Values.authservice.healthcheck.path }}
+              port: {{ .Values.authservice.port }}
+          resources:
+            requests:
+              cpu: {{ .Values.authservice.resources.requests.cpu }}
+              memory: {{ .Values.authservice.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.authservice.resources.limits.cpu }}
+              memory: {{ .Values.authservice.resources.limits.memory }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.authservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.authservice.name }}
+    app.kubernetes.io/name: hipster-shop
+spec:
+  type: {{ .Values.authservice.service.type }}
+  selector:
+    app: {{ .Values.authservice.name }}
+  ports:
+    - name: http
+      port: {{ .Values.authservice.service.port }}
+      targetPort: {{ .Values.authservice.port}}
+
+
+

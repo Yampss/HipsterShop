@@ -1,0 +1,42 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.configmap.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: hipster-shop
+    app.kubernetes.io/component: config
+data:
+  {{- range $key, $value := .Values.configmap.data }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.servicePortsConfig.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: hipster-shop
+    app.kubernetes.io/component: service-ports
+data:
+  {{- range $key, $value := .Values.servicePortsConfig.data }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.serviceAddressesConfig.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: hipster-shop
+    app.kubernetes.io/component: service-addresses
+data:
+  {{- range $key, $value := .Values.serviceAddressesConfig.data }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
+

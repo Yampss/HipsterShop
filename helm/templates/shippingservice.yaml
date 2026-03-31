@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.shippingservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.shippingservice.name }}
+spec:
+  replicas: {{ .Values.shippingservice.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.shippingservice.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.shippingservice.name }}
+        app.kubernetes.io/name: hipster-shop
+        app.kubernetes.io/component: shipping-service
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.shippingservice.terminationGracePeriodSeconds }}
+      containers:
+        - name: server
+          image: {{ .Values.shippingservice.image }}
+          imagePullPolicy: {{ .Values.shippingservice.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.shippingservice.port }}
+
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.configmap.name }}
+
+          env:
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.servicePortsConfig.name }}
+                  key: SHIPPINGSERVICE_PORT
+
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.shippingservice.healthcheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.shippingservice.healthcheck.periodSeconds }}
+            timeoutSeconds: {{ .Values.shippingservice.healthcheck.timeoutSeconds }}
+            httpGet:
+              path: {{ .Values.shippingservice.healthcheck.path }}
+              port: {{ .Values.shippingservice.port }}
+
+          livenessProbe:
+            initialDelaySeconds: {{ .Values.shippingservice.healthcheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.shippingservice.healthcheck.periodSeconds }}
+            timeoutSeconds: {{ .Values.shippingservice.healthcheck.timeoutSeconds }}
+            httpGet:
+              path: {{ .Values.shippingservice.healthcheck.path }}
+              port: {{ .Values.shippingservice.port }}
+
+          resources:
+            {{- toYaml .Values.shippingservice.resources | nindent 12 }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.shippingservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.shippingservice.name }}
+spec:
+  type: {{ .Values.shippingservice.service.type }}
+  selector:
+    app: {{ .Values.shippingservice.name }}
+  ports:
+    - name: grpc
+      port: {{ .Values.shippingservice.service.port }}
+      targetPort: {{ .Values.shippingservice.port }}

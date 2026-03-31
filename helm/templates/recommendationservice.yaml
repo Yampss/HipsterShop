@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.recommendationservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.recommendationservice.name }}
+spec:
+  replicas: {{ .Values.recommendationservice.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.recommendationservice.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.recommendationservice.name }}
+        app.kubernetes.io/name: hipster-shop
+        app.kubernetes.io/component: recommendation-service
+    spec:
+      terminationGracePeriodSeconds: 5
+      containers:
+        - name: server
+          image: {{ .Values.recommendationservice.image }}
+          imagePullPolicy: {{ .Values.recommendationservice.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.recommendationservice.port }}
+
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.configmap.name }}
+
+          env:
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.servicePortsConfig.name }}
+                  key: RECOMMENDATIONSERVICE_PORT
+
+            - name: PRODUCT_CATALOG_SERVICE_ADDR
+              value: "{{ .Values.recommendationservice.productCatalogAddr }}"
+
+            - name: ANALYTICS_MONGO_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.appSecretName }}
+                  key: {{ .Values.mongodb.analyticsUsernameKey }}
+
+            - name: ANALYTICS_MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.appSecretName }}
+                  key: {{ .Values.mongodb.analyticsPasswordKey }}
+
+            - name: ANALYTICS_MONGO_URI
+              value: "{{ .Values.recommendationservice.mongo.uri }}"
+
+            - name: MONGO_DATABASE
+              value: "{{ .Values.recommendationservice.mongo.database }}"
+
+            - name: MONGO_RECOMMENDATIONS_COLLECTION
+              value: "{{ .Values.recommendationservice.mongo.collection }}"
+
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.recommendationservice.healthcheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.recommendationservice.healthcheck.periodSeconds }}
+            timeoutSeconds: {{ .Values.recommendationservice.healthcheck.timeoutSeconds }}
+            httpGet:
+              path: {{ .Values.recommendationservice.healthcheck.path }}
+              port: {{ .Values.recommendationservice.port }}
+
+          livenessProbe:
+            initialDelaySeconds: {{ .Values.recommendationservice.healthcheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.recommendationservice.healthcheck.periodSeconds }}
+            timeoutSeconds: {{ .Values.recommendationservice.healthcheck.timeoutSeconds }}
+            httpGet:
+              path: {{ .Values.recommendationservice.healthcheck.path }}
+              port: {{ .Values.recommendationservice.port }}
+
+          resources:
+            requests:
+              cpu: {{ .Values.recommendationservice.resources.requests.cpu }}
+              memory: {{ .Values.recommendationservice.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.recommendationservice.resources.limits.cpu }}
+              memory: {{ .Values.recommendationservice.resources.limits.memory }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.recommendationservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.recommendationservice.name }}
+spec:
+  type: {{ .Values.recommendationservice.service.type }}
+  selector:
+    app: {{ .Values.recommendationservice.name }}
+  ports:
+    - name: http
+      port: {{ .Values.recommendationservice.service.port }}
+      targetPort: {{ .Values.recommendationservice.port }}

@@ -1,0 +1,31 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ .Values.routes.checkout.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.checkoutservice.name }}
+    app.kubernetes.io/name: hipster-shop
+    app.kubernetes.io/component: route
+spec:
+  parentRefs:
+    - name: {{ .Values.gateway.name }}
+
+  rules:
+    - matches:
+        - path:
+            type: Exact
+            value: {{ .Values.routes.checkout.path }}
+
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplaceFullPath
+              replaceFullPath: {{ .Values.routes.checkout.rewrite }}
+
+      backendRefs:
+        - name: {{ .Values.checkoutservice.name }}
+          port: {{ .Values.checkoutservice.service.port }}
+
+

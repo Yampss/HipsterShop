@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.cartservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.cartservice.name }}
+    app.kubernetes.io/name: hipster-shop
+spec:
+  replicas: {{ .Values.cartservice.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.cartservice.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.cartservice.name }}
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.cartservice.terminationGracePeriodSeconds }}
+      {{- if .Values.cartservice.initWait }}
+      initContainers:
+        - name: wait-for-mongodb
+          image: {{ .Values.cartservice.initContainer.image }}
+          imagePullPolicy: {{ .Values.cartservice.initContainer.imagePullPolicy }}
+          command:
+            - bash
+            - -c
+            - sleep 10
+      {{- end }}
+      containers:
+        - name: server
+          image: {{ .Values.cartservice.image }}
+          imagePullPolicy: {{ .Values.cartservice.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.cartservice.port }}
+              name: http
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.configmap.name }}
+          env:
+            - name: ASPNETCORE_HTTP_PORTS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.servicePortsConfig.name }}
+                  key: CARTSERVICE_PORT
+            - name: MONGO_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.appSecretName }}
+                  key: {{ .Values.mongodb.cartUsernameKey }}
+            - name: MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.appSecretName }}
+                  key: {{ .Values.mongodb.cartPasswordKey }}
+            - name: MONGO_DATABASE
+              value: {{ .Values.cartservice.mongo.database | quote }}
+            - name: MONGO_URI
+              value: "mongodb://$(MONGO_USERNAME):$(MONGO_PASSWORD)@{{ .Values.mongoHeadlessServiceFqdn }}/{{ .Values.cartservice.mongo.database }}?replicaSet={{ .Values.mongodbReplicaSet }}&authSource={{ .Values.cartservice.mongo.database }}&authMechanism={{ .Values.mongodbAuthMechanism }}"
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.cartservice.healthcheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.cartservice.healthcheck.periodSeconds }}
+            timeoutSeconds: {{ .Values.cartservice.healthcheck.timeoutSeconds }}
+            tcpSocket:
+              port: {{ .Values.cartservice.port }}
+          livenessProbe:
+            initialDelaySeconds: {{ .Values.cartservice.healthcheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.cartservice.healthcheck.periodSeconds }}
+            timeoutSeconds: {{ .Values.cartservice.healthcheck.timeoutSeconds }}
+            tcpSocket:
+              port: {{ .Values.cartservice.port }}
+          resources:
+            requests:
+              cpu: {{ .Values.cartservice.resources.requests.cpu }}
+              memory: {{ .Values.cartservice.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.cartservice.resources.limits.cpu }}
+              memory: {{ .Values.cartservice.resources.limits.memory }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.cartservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.cartservice.name }}
+    app.kubernetes.io/name: hipster-shop
+spec:
+  type: {{ .Values.cartservice.service.type }}
+  selector:
+    app: {{ .Values.cartservice.name }}
+  ports:
+    - name: http
+      port: {{ .Values.cartservice.service.port }}
+      targetPort: {{ .Values.cartservice.port }}

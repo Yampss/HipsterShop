@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.currencyservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.currencyservice.name }}
+    app.kubernetes.io/name: hipster-shop
+    app.kubernetes.io/component: currencyservice
+spec:
+  replicas: {{ .Values.currencyservice.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.currencyservice.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.currencyservice.name }}
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.currencyservice.terminationGracePeriodSeconds }}
+      containers:
+        - name: server
+          image: {{ .Values.currencyservice.image }}
+          imagePullPolicy: {{ .Values.currencyservice.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.currencyservice.port }}
+              name: http
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.configmap.name }}
+          env:
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.servicePortsConfig.name }}
+                  key: CURRENCYSERVICE_PORT
+            - name: DISABLE_PROFILER
+              value: {{ .Values.currencyservice.disableProfiler | quote }}
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.currencyservice.healthcheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.currencyservice.healthcheck.periodSeconds }}
+            timeoutSeconds: {{ .Values.currencyservice.healthcheck.timeoutSeconds }}
+            httpGet:
+              path: {{ .Values.currencyservice.healthcheck.path }}
+              port: {{ .Values.currencyservice.port }}
+          livenessProbe:
+            initialDelaySeconds: {{ .Values.currencyservice.healthcheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.currencyservice.healthcheck.periodSeconds }}
+            timeoutSeconds: {{ .Values.currencyservice.healthcheck.timeoutSeconds }}
+            httpGet:
+              path: {{ .Values.currencyservice.healthcheck.path }}
+              port: {{ .Values.currencyservice.port }}
+          resources:
+            requests:
+              cpu: {{ .Values.currencyservice.resources.requests.cpu }}
+              memory: {{ .Values.currencyservice.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.currencyservice.resources.limits.cpu }}
+              memory: {{ .Values.currencyservice.resources.limits.memory }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.currencyservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.currencyservice.name }}
+    app.kubernetes.io/name: hipster-shop
+spec:
+  type: {{ .Values.currencyservice.service.type }}
+  selector:
+    app: {{ .Values.currencyservice.name }}
+  ports:
+    - name: http
+      port: {{ .Values.currencyservice.service.port }}
+      targetPort: {{ .Values.currencyservice.port }}
+

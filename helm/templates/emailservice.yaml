@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.emailservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.emailservice.name }}
+spec:
+  replicas: {{ .Values.emailservice.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.emailservice.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.emailservice.name }}
+        app.kubernetes.io/name: hipster-shop
+        app.kubernetes.io/component: email-service
+    spec:
+      terminationGracePeriodSeconds: 5
+      containers:
+        - name: server
+          image: {{ .Values.emailservice.image }}
+          imagePullPolicy: {{ .Values.emailservice.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.emailservice.port }}
+
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.configmap.name }}
+
+          env:
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.servicePortsConfig.name }}
+                  key: EMAILSERVICE_PORT
+
+            - name: EMAIL_MONGO_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.appSecretName }}
+                  key: {{ .Values.mongodb.notificationUsernameKey }}
+
+            - name: EMAIL_MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.appSecretName }}
+                  key: {{ .Values.mongodb.notificationPasswordKey }}
+
+            - name: EMAIL_MONGO_URI
+              value: "{{ .Values.emailservice.mongo.uri }}"
+
+            - name: MONGO_DATABASE
+              value: "{{ .Values.emailservice.mongo.database }}"
+
+            - name: MONGO_EMAIL_EVENTS_COLLECTION
+              value: "{{ .Values.emailservice.mongo.collection }}"
+
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.emailservice.healthcheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.emailservice.healthcheck.periodSeconds }}
+            timeoutSeconds: {{ .Values.emailservice.healthcheck.timeoutSeconds }}
+            httpGet:
+              path: {{ .Values.emailservice.healthcheck.path }}
+              port: {{ .Values.emailservice.port }}
+
+          livenessProbe:
+            initialDelaySeconds: {{ .Values.emailservice.healthcheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.emailservice.healthcheck.periodSeconds }}
+            timeoutSeconds: {{ .Values.emailservice.healthcheck.timeoutSeconds }}
+            httpGet:
+              path: {{ .Values.emailservice.healthcheck.path }}
+              port: {{ .Values.emailservice.port }}
+
+          resources:
+            requests:
+              cpu: {{ .Values.emailservice.resources.requests.cpu }}
+              memory: {{ .Values.emailservice.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.emailservice.resources.limits.cpu }}
+              memory: {{ .Values.emailservice.resources.limits.memory }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.emailservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.emailservice.name }}
+spec:
+  type: {{ .Values.emailservice.service.type }}
+  selector:
+    app: {{ .Values.emailservice.name }}
+  ports:
+    - name: http
+      port: {{ .Values.emailservice.service.port }}
+      targetPort: {{ .Values.emailservice.port }}

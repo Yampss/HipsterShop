@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.adservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.adservice.name }}
+    app.kubernetes.io/name: hipster-shop
+    app.kubernetes.io/component: adservice
+spec:
+  replicas: {{ .Values.adservice.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.adservice.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.adservice.name }}
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.adservice.terminationGracePeriodSeconds }}
+      containers:
+        - name: server
+          image: {{ .Values.adservice.image }}
+          imagePullPolicy: {{ .Values.adservice.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.adservice.port }}
+              name: http
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.configmap.name }}
+          env:
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.servicePortsConfig.name }}
+                  key: ADSERVICE_PORT
+          resources:
+            requests:
+              cpu: {{ .Values.adservice.resources.requests.cpu }}
+              memory: {{ .Values.adservice.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.adservice.resources.limits.cpu }}
+              memory: {{ .Values.adservice.resources.limits.memory }}
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.adservice.healthcheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.adservice.healthcheck.periodSeconds }}
+            timeoutSeconds: {{ .Values.adservice.healthcheck.timeoutSeconds }}
+            httpGet:
+              path: {{ .Values.adservice.healthcheck.path }}
+              port: {{ .Values.adservice.port }}
+          livenessProbe:
+            initialDelaySeconds: {{ .Values.adservice.healthcheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.adservice.healthcheck.periodSeconds }}
+            timeoutSeconds: {{ .Values.adservice.healthcheck.timeoutSeconds }}
+            httpGet:
+              path: {{ .Values.adservice.healthcheck.path }}
+              port: {{ .Values.adservice.port }}
+          volumeMounts:
+            - mountPath: /tmp
+              name: tmp-volume
+      volumes:
+        - name: tmp-volume
+          emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.adservice.name }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ .Values.adservice.name }}
+    app.kubernetes.io/name: hipster-shop
+spec:
+  type: {{ .Values.adservice.service.type }}
+  selector:
+    app: {{ .Values.adservice.name }}
+  ports:
+    - name: http
+      port: {{ .Values.adservice.service.port }}
+      targetPort: {{ .Values.adservice.port }}
+
