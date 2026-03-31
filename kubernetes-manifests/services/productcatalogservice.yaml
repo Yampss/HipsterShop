@@ -35,12 +35,12 @@ spec:
             configMapKeyRef:
               name: service-ports
               key: PRODUCTCATALOG_PORT
-        - name: MONGO_USERNAME
+        - name: CATALOG_MONGO_USERNAME
           valueFrom:
             secretKeyRef:
               name: mongodb-users
               key: CATALOG_MONGO_USERNAME
-        - name: MONGO_PASSWORD
+        - name: CATALOG_MONGO_PASSWORD
           valueFrom:
             secretKeyRef:
               name: mongodb-users

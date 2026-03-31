@@ -64,12 +64,12 @@ spec:
           value: "1"
         - name: ASPNETCORE_HTTP_PORTS
           value: "7070"
-        - name: MONGO_USERNAME
+        - name: CART_MONGO_USERNAME
           valueFrom:
             secretKeyRef:
               name: mongodb-users
               key: CART_MONGO_USERNAME
-        - name: MONGO_PASSWORD
+        - name: CART_MONGO_PASSWORD
           valueFrom:
             secretKeyRef:
               name: mongodb-users

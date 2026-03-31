@@ -66,12 +66,12 @@ spec:
         - configMapRef:
             name: hipster-config
         env:
-        - name: MONGO_USERNAME
+        - name: AUTH_MONGO_USERNAME
           valueFrom:
             secretKeyRef:
               name: mongodb-users
               key: AUTH_MONGO_USERNAME
-        - name: MONGO_PASSWORD
+        - name: AUTH_MONGO_PASSWORD
           valueFrom:
             secretKeyRef:
               name: mongodb-users

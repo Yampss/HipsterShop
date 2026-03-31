@@ -49,7 +49,7 @@ spec:
           valueFrom:
             configMapKeyRef:
               name: database-config
-              key: NOTIFICATION_MONGO_URI
+              key: EMAIL_MONGO_URI
         - name: MONGO_DATABASE
           valueFrom:
             configMapKeyRef:
