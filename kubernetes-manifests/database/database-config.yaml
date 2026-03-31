@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: database-config
+  namespace: hipster
+data:
+  # MongoDB Connection URIs for each database
+  AUTH_MONGO_URI: "mongodb://$(AUTH_MONGO_USERNAME):$(AUTH_MONGO_PASSWORD)@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/auth_db?replicaSet=rs0&authSource=auth_db&authMechanism=SCRAM-SHA-256"
+  CART_MONGO_URI: "mongodb://$(CART_MONGO_USERNAME):$(CART_MONGO_PASSWORD)@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/cart_db?replicaSet=rs0&authSource=cart_db&authMechanism=SCRAM-SHA-256"
+  CATALOG_MONGO_URI: "mongodb://$(CATALOG_MONGO_USERNAME):$(CATALOG_MONGO_PASSWORD)@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/catalog_db?replicaSet=rs0&authSource=catalog_db&authMechanism=SCRAM-SHA-256"
+  ORDER_MONGO_URI: "mongodb://$(ORDER_MONGO_USERNAME):$(ORDER_MONGO_PASSWORD)@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/order_db?replicaSet=rs0&authSource=order_db&authMechanism=SCRAM-SHA-256"
+  PAYMENT_MONGO_URI: "mongodb://$(PAYMENT_MONGO_USERNAME):$(PAYMENT_MONGO_PASSWORD)@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/payment_db?replicaSet=rs0&authSource=payment_db&authMechanism=SCRAM-SHA-256"
+  NOTIFICATION_MONGO_URI: "mongodb://$(NOTIFICATION_MONGO_USERNAME):$(NOTIFICATION_MONGO_PASSWORD)@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/notification_db?replicaSet=rs0&authSource=notification_db&authMechanism=SCRAM-SHA-256"
+  ANALYTICS_MONGO_URI: "mongodb://$(ANALYTICS_MONGO_USERNAME):$(ANALYTICS_MONGO_PASSWORD)@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/analytics_db?replicaSet=rs0&authSource=analytics_db&authMechanism=SCRAM-SHA-256"
+
+  # MongoDB Host
+  MONGODB_HOST: "mongodb-0.mongo-headless.hipster.svc.cluster.local:27017"
+  MONGODB_PORT: "27017"
+  MONGODB_RS_NAME: "rs0"

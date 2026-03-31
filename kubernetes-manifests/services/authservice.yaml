@@ -31,12 +31,12 @@ spec:
         - name: MONGO_USERNAME
           valueFrom:
             secretKeyRef:
-              name: mongo-secret
+              name: mongodb-root
               key: MONGO_ROOT_USERNAME
         - name: MONGO_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: mongo-secret
+              name: mongodb-root
               key: MONGO_ROOT_PASSWORD
         command:
         - bash
@@ -69,24 +69,33 @@ spec:
         - name: MONGO_USERNAME
           valueFrom:
             secretKeyRef:
-              name: mongo-app-secret
+              name: mongodb-users
               key: AUTH_MONGO_USERNAME
         - name: MONGO_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: mongo-app-secret
+              name: mongodb-users
               key: AUTH_MONGO_PASSWORD
         - name: MONGO_DATABASE
-          value: "auth_db"
+          valueFrom:
+            configMapKeyRef:
+              name: mongodb-config
+              key: AUTH_DB_NAME
         - name: MONGO_URI
-          value: "mongodb://$(MONGO_USERNAME):$(MONGO_PASSWORD)@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/auth_db?replicaSet=rs0&authSource=auth_db&authMechanism=SCRAM-SHA-256"
+          valueFrom:
+            configMapKeyRef:
+              name: database-config
+              key: AUTH_MONGO_URI
         - name: JWT_SECRET
           valueFrom:
             secretKeyRef:
-              name: jwt-secret
+              name: app-secrets
               key: JWT_SECRET
         - name: PORT
-          value: "8081"
+          valueFrom:
+            configMapKeyRef:
+              name: service-ports
+              key: AUTHSERVICE_PORT
         readinessProbe:
           initialDelaySeconds: 10
           httpGet:
@@ -121,13 +130,3 @@ spec:
   - name: http
     port: 8081
     targetPort: 8081
----
-
-apiVersion: v1
-kind: Secret
-metadata:
-  namespace: hipster
-  name: jwt-secret
-type: Opaque
-stringData:
-  JWT_SECRET: "team4hipstershopsecret"

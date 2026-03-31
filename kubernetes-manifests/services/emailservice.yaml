@@ -31,23 +31,35 @@ spec:
             name: hipster-config
         env:
         - name: PORT
-          value: "8080"
+          valueFrom:
+            configMapKeyRef:
+              name: service-ports
+              key: EMAILSERVICE_PORT
         - name: EMAIL_MONGO_USERNAME
           valueFrom:
             secretKeyRef:
-              name: mongo-app-secret
+              name: mongodb-users
               key: NOTIFICATION_MONGO_USERNAME
         - name: EMAIL_MONGO_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: mongo-app-secret
+              name: mongodb-users
               key: NOTIFICATION_MONGO_PASSWORD
         - name: EMAIL_MONGO_URI
-          value: "mongodb://$(EMAIL_MONGO_USERNAME):$(EMAIL_MONGO_PASSWORD)@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/notification_db?replicaSet=rs0&authSource=notification_db&authMechanism=SCRAM-SHA-256"
+          valueFrom:
+            configMapKeyRef:
+              name: database-config
+              key: NOTIFICATION_MONGO_URI
         - name: MONGO_DATABASE
-          value: "notification_db"
+          valueFrom:
+            configMapKeyRef:
+              name: mongodb-config
+              key: NOTIFICATION_DB_NAME
         - name: MONGO_EMAIL_EVENTS_COLLECTION
-          value: "email_events"
+          valueFrom:
+            configMapKeyRef:
+              name: mongodb-config
+              key: NOTIFICATION_EMAIL_EVENTS_COLLECTION
         readinessProbe:
           periodSeconds: 5
           httpGet:

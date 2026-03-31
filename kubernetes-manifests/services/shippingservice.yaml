@@ -30,7 +30,10 @@ spec:
             name: hipster-config
         env:
         - name: PORT
-          value: "50051"
+          valueFrom:
+            configMapKeyRef:
+              name: service-ports
+              key: SHIPPINGSERVICE_PORT
         readinessProbe:
           periodSeconds: 5
           httpGet:

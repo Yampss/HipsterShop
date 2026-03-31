@@ -41,25 +41,40 @@ spec:
             name: hipster-config
         env:
         - name: PORT
-          value: "8080"
+          valueFrom:
+            configMapKeyRef:
+              name: service-ports
+              key: RECOMMENDATIONSERVICE_PORT
         - name: PRODUCT_CATALOG_SERVICE_ADDR
-          value: "productcatalogservice:3550"
+          valueFrom:
+            configMapKeyRef:
+              name: service-addresses
+              key: PRODUCT_CATALOG_SERVICE_ADDR
         - name: ANALYTICS_MONGO_USERNAME
           valueFrom:
             secretKeyRef:
-              name: mongo-app-secret
+              name: mongodb-users
               key: ANALYTICS_MONGO_USERNAME
         - name: ANALYTICS_MONGO_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: mongo-app-secret
+              name: mongodb-users
               key: ANALYTICS_MONGO_PASSWORD
         - name: ANALYTICS_MONGO_URI
-          value: "mongodb://$(ANALYTICS_MONGO_USERNAME):$(ANALYTICS_MONGO_PASSWORD)@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/analytics_db?replicaSet=rs0&authSource=analytics_db&authMechanism=SCRAM-SHA-256"
+          valueFrom:
+            configMapKeyRef:
+              name: database-config
+              key: ANALYTICS_MONGO_URI
         - name: MONGO_DATABASE
-          value: "analytics_db"
+          valueFrom:
+            configMapKeyRef:
+              name: mongodb-config
+              key: ANALYTICS_DB_NAME
         - name: MONGO_RECOMMENDATIONS_COLLECTION
-          value: "recommendations"
+          valueFrom:
+            configMapKeyRef:
+              name: mongodb-config
+              key: ANALYTICS_RECOMMENDATIONS_COLLECTION
         resources:
           requests:
             cpu: 100m

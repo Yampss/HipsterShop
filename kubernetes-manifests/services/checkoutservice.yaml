@@ -38,37 +38,70 @@ spec:
                 name: hipster-config
           env:
             - name: PORT
-              value: "5050"
+              valueFrom:
+                configMapKeyRef:
+                  name: service-ports
+                  key: CHECKOUTSERVICE_PORT
             - name: PRODUCT_CATALOG_SERVICE_ADDR
-              value: "productcatalogservice:3550"
+              valueFrom:
+                configMapKeyRef:
+                  name: service-addresses
+                  key: PRODUCT_CATALOG_SERVICE_ADDR
             - name: SHIPPING_SERVICE_ADDR
-              value: "shippingservice:50051"
+              valueFrom:
+                configMapKeyRef:
+                  name: service-addresses
+                  key: SHIPPING_SERVICE_ADDR
             - name: PAYMENT_SERVICE_ADDR
-              value: "paymentservice:50051"
+              valueFrom:
+                configMapKeyRef:
+                  name: service-addresses
+                  key: PAYMENT_SERVICE_ADDR
             - name: EMAIL_SERVICE_ADDR
-              value: "emailservice:8080"
+              valueFrom:
+                configMapKeyRef:
+                  name: service-addresses
+                  key: EMAIL_SERVICE_ADDR
             - name: CURRENCY_SERVICE_ADDR
-              value: "currencyservice:7000"
+              valueFrom:
+                configMapKeyRef:
+                  name: service-addresses
+                  key: CURRENCY_SERVICE_ADDR
             - name: CART_SERVICE_ADDR
-              value: "cartservice:7070"
+              valueFrom:
+                configMapKeyRef:
+                  name: service-addresses
+                  key: CART_SERVICE_ADDR
             - name: ORDER_MONGO_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: mongo-app-secret
+                  name: mongodb-users
                   key: ORDER_MONGO_USERNAME
             - name: ORDER_MONGO_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: mongo-app-secret
+                  name: mongodb-users
                   key: ORDER_MONGO_PASSWORD
             - name: ORDER_MONGO_URI
-              value: "mongodb://$(ORDER_MONGO_USERNAME):$(ORDER_MONGO_PASSWORD)@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/order_db?replicaSet=rs0&authSource=order_db&authMechanism=SCRAM-SHA-256"
+              valueFrom:
+                configMapKeyRef:
+                  name: database-config
+                  key: ORDER_MONGO_URI
             - name: MONGO_DATABASE
-              value: "order_db"
+              valueFrom:
+                configMapKeyRef:
+                  name: mongodb-config
+                  key: ORDER_DB_NAME
             - name: MONGO_ORDERS_COLLECTION
-              value: "orders"
+              valueFrom:
+                configMapKeyRef:
+                  name: mongodb-config
+                  key: ORDER_ORDERS_COLLECTION
             - name: MONGO_ORDER_EVENTS_COLLECTION
-              value: "order_events"
+              valueFrom:
+                configMapKeyRef:
+                  name: mongodb-config
+                  key: ORDER_EVENTS_COLLECTION
           resources:
             requests:
               cpu: 100m

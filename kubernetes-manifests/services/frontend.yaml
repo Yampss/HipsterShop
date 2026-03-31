@@ -46,15 +46,19 @@ spec:
                 name: hipster-config
           env:
             - name: PORT
-              value: "8080"
+              valueFrom:
+                configMapKeyRef:
+                  name: service-ports
+                  key: FRONTEND_PORT
             - name: GATEWAY_ADDR
-              value: "hipstershop-gateway.hipster.svc.cluster.local"
-              #chckhere**
-
+              valueFrom:
+                configMapKeyRef:
+                  name: service-addresses
+                  key: GATEWAY_ADDR
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: jwt-secret
+                  name: app-secrets
                   key: JWT_SECRET
           resources:
             requests:

@@ -31,12 +31,12 @@ spec:
         - name: MONGO_USERNAME
           valueFrom:
             secretKeyRef:
-              name: mongo-app-secret
+              name: mongodb-users
               key: CART_MONGO_USERNAME
         - name: MONGO_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: mongo-app-secret
+              name: mongodb-users
               key: CART_MONGO_PASSWORD
         command:
         - bash
@@ -67,17 +67,23 @@ spec:
         - name: MONGO_USERNAME
           valueFrom:
             secretKeyRef:
-              name: mongo-app-secret
+              name: mongodb-users
               key: CART_MONGO_USERNAME
         - name: MONGO_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: mongo-app-secret
+              name: mongodb-users
               key: CART_MONGO_PASSWORD
         - name: MONGO_DATABASE
-          value: "cart_db"
+          valueFrom:
+            configMapKeyRef:
+              name: mongodb-config
+              key: CART_DB_NAME
         - name: MONGO_URI
-          value: "mongodb://$(MONGO_USERNAME):$(MONGO_PASSWORD)@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/cart_db?replicaSet=rs0&authSource=cart_db&authMechanism=SCRAM-SHA-256"
+          valueFrom:
+            configMapKeyRef:
+              name: database-config
+              key: CART_MONGO_URI
         resources:
           requests:
             cpu: 200m

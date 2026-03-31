@@ -32,9 +32,15 @@ spec:
             name: hipster-config
         env:
         - name: PORT
-          value: "7000"
+          valueFrom:
+            configMapKeyRef:
+              name: service-ports
+              key: CURRENCYSERVICE_PORT
         - name: DISABLE_PROFILER
-          value: "1"
+          valueFrom:
+            configMapKeyRef:
+              name: app-features
+              key: CURRENCY_SERVICE_RANDOM_ERROR
         readinessProbe:
           httpGet:
             path: "/_healthz"
