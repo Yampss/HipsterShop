@@ -72,16 +72,12 @@ spec:
                 configMapKeyRef:
                   name: service-addresses
                   key: CART_SERVICE_ADDR
-            - name: MONGODB_HOST
-              value: "mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017"
-            - name: MONGODB_REPLICA_SET
-              value: "rs0"
-            - name: ORDER_MONGO_USERNAME
+            - name: MONGO_USERNAME
               valueFrom:
                 secretKeyRef:
                   name: mongodb-users
                   key: ORDER_MONGO_USERNAME
-            - name: ORDER_MONGO_PASSWORD
+            - name: MONGO_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: mongodb-users
@@ -101,6 +97,8 @@ spec:
                 configMapKeyRef:
                   name: mongodb-config
                   key: ORDER_EVENTS_COLLECTION
+            - name: MONGO_URI
+              value: "mongodb://$(MONGO_USERNAME):$(MONGO_PASSWORD)@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/order_db?replicaSet=rs0&authSource=order_db&authMechanism=SCRAM-SHA-256"
           resources:
             requests:
               cpu: 100m

@@ -35,16 +35,12 @@ spec:
             configMapKeyRef:
               name: service-ports
               key: PRODUCTCATALOG_PORT
-        - name: MONGODB_HOST
-          value: "mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017"
-        - name: MONGODB_REPLICA_SET
-          value: "rs0"
-        - name: CATALOG_MONGO_USERNAME
+        - name: MONGO_USERNAME
           valueFrom:
             secretKeyRef:
               name: mongodb-users
               key: CATALOG_MONGO_USERNAME
-        - name: CATALOG_MONGO_PASSWORD
+        - name: MONGO_PASSWORD
           valueFrom:
             secretKeyRef:
               name: mongodb-users
@@ -61,6 +57,8 @@ spec:
               key: CATALOG_PRODUCTS_COLLECTION
         - name: PRODUCTS_FALLBACK_LOCAL
           value: "true"
+        - name: MONGO_URI
+          value: "mongodb://$(MONGO_USERNAME):$(MONGO_PASSWORD)@mongodb-0.mongo-headless.hipster.svc.cluster.local:27017,mongodb-1.mongo-headless.hipster.svc.cluster.local:27017,mongodb-2.mongo-headless.hipster.svc.cluster.local:27017/catalog_db?replicaSet=rs0&authSource=catalog_db&authMechanism=SCRAM-SHA-256"
         readinessProbe:
           initialDelaySeconds: 20
           periodSeconds: 5
