@@ -33,50 +33,68 @@ spec:
             - name: PORT
               valueFrom:
                 configMapKeyRef:
-                  name: {{ .Values.servicePortsConfig.name }}
+                  name: service-ports
                   key: CHECKOUTSERVICE_PORT
-
             - name: PRODUCT_CATALOG_SERVICE_ADDR
-              value: "{{ .Values.checkoutservice.services.productCatalog }}"
-
+              valueFrom:
+                configMapKeyRef:
+                  name: service-addresses
+                  key: PRODUCT_CATALOG_SERVICE_ADDR
             - name: SHIPPING_SERVICE_ADDR
-              value: "{{ .Values.checkoutservice.services.shipping }}"
-
+              valueFrom:
+                configMapKeyRef:
+                  name: service-addresses
+                  key: SHIPPING_SERVICE_ADDR
             - name: PAYMENT_SERVICE_ADDR
-              value: "{{ .Values.checkoutservice.services.payment }}"
-
+              valueFrom:
+                configMapKeyRef:
+                  name: service-addresses
+                  key: PAYMENT_SERVICE_ADDR
             - name: EMAIL_SERVICE_ADDR
-              value: "{{ .Values.checkoutservice.services.email }}"
-
+              valueFrom:
+                configMapKeyRef:
+                  name: service-addresses
+                  key: EMAIL_SERVICE_ADDR
             - name: CURRENCY_SERVICE_ADDR
-              value: "{{ .Values.checkoutservice.services.currency }}"
-
+              valueFrom:
+                configMapKeyRef:
+                  name: service-addresses
+                  key: CURRENCY_SERVICE_ADDR
             - name: CART_SERVICE_ADDR
-              value: "{{ .Values.checkoutservice.services.cart }}"
-
+              valueFrom:
+                configMapKeyRef:
+                  name: service-addresses
+                  key: CART_SERVICE_ADDR
             - name: ORDER_MONGO_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.mongodb.secretName }}
-                  key: {{ .Values.mongodb.orderUsernameKey }}
-
+                  name: mongodb-users
+                  key: ORDER_MONGO_USERNAME
             - name: ORDER_MONGO_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.mongodb.secretName }}
-                  key: {{ .Values.mongodb.orderPasswordKey }}
-
+                  name: mongodb-users
+                  key: ORDER_MONGO_PASSWORD
             - name: ORDER_MONGO_URI
-              value: "{{ .Values.checkoutservice.mongo.uri }}"
-
+              valueFrom:
+                configMapKeyRef:
+                  name: database-config
+                  key: ORDER_MONGO_URI
             - name: MONGO_DATABASE
-              value: "{{ .Values.checkoutservice.mongo.database }}"
-
+              valueFrom:
+                configMapKeyRef:
+                  name: mongodb-config
+                  key: ORDER_DB_NAME
             - name: MONGO_ORDERS_COLLECTION
-              value: "{{ .Values.checkoutservice.mongo.ordersCollection }}"
-
+              valueFrom:
+                configMapKeyRef:
+                  name: mongodb-config
+                  key: ORDER_ORDERS_COLLECTION
             - name: MONGO_ORDER_EVENTS_COLLECTION
-              value: "{{ .Values.checkoutservice.mongo.eventsCollection }}"
+              valueFrom:
+                configMapKeyRef:
+                  name: mongodb-config
+                  key: ORDER_EVENTS_COLLECTION
 
           readinessProbe:
             initialDelaySeconds: {{ .Values.checkoutservice.healthcheck.initialDelaySeconds }}

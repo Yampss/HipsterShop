@@ -37,16 +37,22 @@ spec:
                   key: ASSISTANTSERVICE_PORT
 
             - name: GATEWAY_ADDR
-              value: "{{ .Values.assistantservice.gatewayAddr }}"
+              valueFrom:
+                configMapKeyRef:
+                  name: service-addresses
+                  key: GATEWAY_ADDR
 
             - name: GEMINI_MODEL
-              value: "{{ .Values.assistantservice.gemini.model }}"
+              valueFrom:
+                configMapKeyRef:
+                  name: app-features
+                  key: GEMINI_MODEL
 
             - name: GEMINI_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.assistantservice.gemini.secretName }}
-                  key: {{ .Values.assistantservice.gemini.secretKey }}
+                  name: app-secrets
+                  key: GEMINI_API_KEY
 
           resources:
             requests:

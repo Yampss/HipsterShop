@@ -44,10 +44,18 @@ serviceAddressesConfig:
   name: service-addresses
   data:
     GATEWAY_ADDR: "hipstershop-gateway.hipster.svc.cluster.local:80"
-    PRODUCTCATALOG_ADDR: "productcatalogservice:3550"
+    PRODUCT_CATALOG_SERVICE_ADDR: "productcatalogservice:3550"
+    PRODUCT_CATALOG_ADDR: "productcatalogservice:3550"
+    SHIPPING_SERVICE_ADDR: "shippingservice:50051"
     SHIPPING_ADDR: "shippingservice:50051"
+    PAYMENT_SERVICE_ADDR: "paymentservice:50051"
     PAYMENT_ADDR: "paymentservice:50051"
+    EMAIL_SERVICE_ADDR: "emailservice:8080"
     EMAIL_ADDR: "emailservice:8080"
+    CURRENCY_SERVICE_ADDR: "currencyservice:7000"
+    CART_SERVICE_ADDR: "cartservice:7070"
+    RECOMMENDATION_SERVICE_ADDR: "recommendationservice:8080"
+    AUTH_SERVICE_ADDR: "authservice:8081"
     CURRENCY_ADDR: "currencyservice:7000"
     CART_ADDR: "cartservice:7070"
     AD_ADDR: "adservice:9555"
@@ -194,7 +202,7 @@ secrets:
 
 adservice:
   name: adservice
-  replicas: 1
+  replicas: 2
   image: cazzzzz/trf-adservice-hipster:latest
   imagePullPolicy: IfNotPresent
   port: 9555
@@ -217,7 +225,7 @@ adservice:
 
 currencyservice:
   name: currencyservice
-  replicas: 1
+  replicas: 2
   image: cazzzzz/trf-currencyservice-hipster:latest
   imagePullPolicy: IfNotPresent
   port: 7000
@@ -241,7 +249,7 @@ currencyservice:
 
 productcatalogservice:
   name: productcatalogservice
-  replicas: 1
+  replicas: 2
   image: cazzzzz/trf-productcatalogservice-hipster:v1
   imagePullPolicy: IfNotPresent
   port: 3550
@@ -269,7 +277,7 @@ productcatalogservice:
 
 assistantservice:
   name: assistantservice
-  replicas: 1
+  replicas: 2
   image: cazzzzz/trf-assistantservice-hipster:latest
   imagePullPolicy: IfNotPresent
   port: 8080
@@ -297,7 +305,7 @@ assistantservice:
 
 authservice:
   name: authservice
-  replicas: 1
+  replicas: 2
   image: cazzzzz/trf-authservice-hipster:latest
   imagePullPolicy: IfNotPresent
   port: 8081
@@ -329,7 +337,7 @@ authservice:
 
 cartservice:
   name: cartservice
-  replicas: 1
+  replicas: 2
   image: cazzzzz/trf-cartservice-hipster:v1
   imagePullPolicy: IfNotPresent
   port: 7070
@@ -358,7 +366,7 @@ cartservice:
 
 emailservice:
   name: emailservice
-  replicas: 1
+  replicas: 2
   image: cazzzzz/trf-emailservice-hipster:latest
   imagePullPolicy: IfNotPresent
   port: 8080
@@ -385,7 +393,7 @@ emailservice:
 
 recommendationservice:
   name: recommendationservice
-  replicas: 1
+  replicas: 2
   image: cazzzzz/trf-recommendationservice-hipster:latest
   imagePullPolicy: IfNotPresent
   port: 8080
@@ -413,7 +421,7 @@ recommendationservice:
 
 paymentservice:
   name: paymentservice
-  replicas: 1
+  replicas: 2
   image: cazzzzz/trf-paymentservice-hipster:latest
   imagePullPolicy: IfNotPresent
   port: 50051
@@ -441,7 +449,7 @@ paymentservice:
 
 checkoutservice:
   name: checkoutservice
-  replicas: 1
+  replicas: 2
   image: cazzzzz/trf-checkoutservice-hipster:latest
   imagePullPolicy: IfNotPresent
   port: 5050
@@ -476,7 +484,7 @@ checkoutservice:
 
 shippingservice:
   name: shippingservice
-  replicas: 1
+  replicas: 2
   image: cazzzzz/trf-shippingservice-hipster:latest
   imagePullPolicy: IfNotPresent
   port: 50051
@@ -499,7 +507,7 @@ shippingservice:
 
 frontend:
   name: frontend
-  replicas: 1
+  replicas: 2
   image: cazzzzz/trf-frontend-hipster:v2
   imagePullPolicy: IfNotPresent
   port: 8080
