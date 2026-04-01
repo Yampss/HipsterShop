@@ -29,8 +29,7 @@ replicas:
   productcatalogservice: 2
   recommendationservice: 2
   shippingservice:       2
-  loadgenerator:         3
-
+  loadgenerator:         0
 
 rollingUpdate:
   maxUnavailable: 1
@@ -128,7 +127,7 @@ hpa:
   frontend:
     minReplicas:        2
     maxReplicas:        5
-    cpuUtilization:     70
+    cpuUtilization:     60
     memoryUtilization:  80
     scaleDown:
       stabilizationWindowSeconds: 20
