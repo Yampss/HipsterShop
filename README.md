@@ -275,21 +275,4 @@ helm uninstall hipstershop -n hipster
 - Zero-downtime deployments
 - Graceful pod termination (terminationGracePeriodSeconds)
 
-## Learning Resources
-
-See also:
-- [AUTHENTICATION.txt](AUTHENTICATION.txt) - JWT + Cookie authentication details
-- Helm/ - Complete Helm chart with values
-- kubernetes-manifests/ - Kustomize-based manifests
-
-## Interview Prep Topics
-
-- Kubernetes service discovery and DNS
-- StatefulSet vs Deployment
-- Database-per-service architecture
-- JWT token validation and security
-- Server-side rendering benefits
-- Helm chart templating
-- Gateway API routing
-- Pod-to-pod networking
 
