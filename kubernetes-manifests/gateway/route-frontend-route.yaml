@@ -19,6 +19,20 @@ spec:
           port: 80
     - matches:
         - path:
+            type: PathPrefix
+            value: /resources/
+      backendRefs:
+        - name: frontend
+          port: 80
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /architecture
+      backendRefs:
+        - name: frontend
+          port: 80
+    - matches:
+        - path:
             type: Exact
             value: /_healthz
       backendRefs:

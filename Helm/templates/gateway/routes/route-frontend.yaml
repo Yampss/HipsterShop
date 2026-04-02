@@ -21,6 +21,20 @@ spec:
       port: {{ .Values.ports.frontendSvc }}
   - matches:
     - path:
+        type: PathPrefix
+        value: /resources/
+    backendRefs:
+    - name: frontend
+      port: {{ .Values.ports.frontendSvc }}
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /architecture
+    backendRefs:
+    - name: frontend
+      port: {{ .Values.ports.frontendSvc }}
+  - matches:
+    - path:
         type: Exact
         value: /_healthz
     backendRefs:
