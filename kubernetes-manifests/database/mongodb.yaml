@@ -50,6 +50,7 @@ spec:
     metadata:
       labels:
         app: mongodb
+        tier: database
     spec:
       terminationGracePeriodSeconds: 30
       containers:
@@ -123,6 +124,9 @@ metadata:
 spec:
   backoffLimit: 10
   template:
+    metadata:
+      labels:
+        tier: job
     spec:
       restartPolicy: OnFailure
       containers:
@@ -327,6 +331,9 @@ metadata:
 spec:
   backoffLimit: 10
   template:
+    metadata:
+      labels:
+        tier: job
     spec:
       restartPolicy: OnFailure
       containers:
@@ -394,6 +401,9 @@ metadata:
 spec:
   backoffLimit: 10
   template:
+    metadata:
+      labels:
+        tier: job
     spec:
       restartPolicy: OnFailure
       containers:

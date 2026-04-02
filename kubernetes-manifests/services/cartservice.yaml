@@ -19,6 +19,7 @@ spec:
     metadata:
       labels:
         app: cartservice
+        tier: backend
     spec:
       terminationGracePeriodSeconds: 5
       initContainers:

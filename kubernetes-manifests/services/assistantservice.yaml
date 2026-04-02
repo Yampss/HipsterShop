@@ -17,6 +17,7 @@ spec:
     metadata:
       labels:
         app: assistantservice
+        tier: backend
     spec:
       containers:
       - name: server

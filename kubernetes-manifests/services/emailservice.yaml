@@ -19,6 +19,7 @@ spec:
     metadata:
       labels:
         app: emailservice
+        tier: backend
     spec:
       terminationGracePeriodSeconds: 5
       containers:
