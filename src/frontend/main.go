@@ -96,6 +96,7 @@ func main() {
 
 	r := mux.NewRouter()
 	r.HandleFunc(baseUrl+"/", svc.homeHandler).Methods(http.MethodGet, http.MethodHead)
+	r.HandleFunc(baseUrl+"/architecture", svc.architectureHandler).Methods(http.MethodGet, http.MethodHead)
 	r.HandleFunc(baseUrl+"/product/{id}", svc.productHandler).Methods(http.MethodGet, http.MethodHead)
 	r.Handle(baseUrl+"/cart", requireLogin(http.HandlerFunc(svc.viewCartHandler))).Methods(http.MethodGet, http.MethodHead)
 	r.Handle(baseUrl+"/cart", requireLogin(http.HandlerFunc(svc.addToCartHandler))).Methods(http.MethodPost)
@@ -109,6 +110,7 @@ func main() {
 	r.Handle(baseUrl+"/cart/checkout", requireLogin(http.HandlerFunc(svc.placeOrderHandler))).Methods(http.MethodPost)
 
 	r.PathPrefix(baseUrl + "/static/").Handler(http.StripPrefix(baseUrl+"/static/", http.FileServer(http.Dir("./static/"))))
+	r.PathPrefix(baseUrl + "/resources/").Handler(http.StripPrefix(baseUrl+"/resources/", http.FileServer(http.Dir("./static/resources/"))))
 	r.HandleFunc(baseUrl+"/robots.txt", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "User-agent: *\nDisallow: /") })
 	r.HandleFunc(baseUrl+"/_healthz", func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, "ok") })
 	r.HandleFunc(baseUrl+"/product-meta/{ids}", svc.getProductByID).Methods(http.MethodGet)

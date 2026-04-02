@@ -342,6 +342,86 @@ main {
   font-weight: normal;
 }
 
+.architecture-cta-row {
+  padding-top: 36px;
+}
+
+.architecture-cta-btn {
+  border: 1px solid #2f3844;
+  background: #2f3844;
+  color: #ffffff;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 10px 20px;
+}
+
+.architecture-cta-btn:hover {
+  color: #ffffff;
+  background: #212932;
+  border-color: #212932;
+}
+
+.architecture-page {
+  background-color: #f9f9f9;
+}
+
+.architecture-title {
+  font-size: 36px;
+  margin-bottom: 8px;
+}
+
+.architecture-subtitle {
+  color: #5f5f5f;
+  margin-bottom: 32px;
+}
+
+.architecture-card {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+  padding: 20px;
+}
+
+.architecture-card h4 {
+  font-size: 22px;
+  margin-bottom: 16px;
+}
+
+.architecture-card img {
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  border: 1px solid #e1e1e1;
+  background: #ffffff;
+}
+
+.architecture-download-btn {
+  border: 1px solid #111111;
+  background: #ffffff;
+  color: #111111;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 10px 22px;
+}
+
+.architecture-download-btn:hover {
+  color: #111111;
+  background: #efefef;
+  border-color: #5f5f5f;
+}
+
+@media (max-width: 991px) {
+  .architecture-cta-row {
+    padding-top: 20px;
+  }
+
+  .architecture-title {
+    font-size: 30px;
+  }
+}
+
 .hot-products-row {
   padding-bottom: 70px;
   padding-left: 10%;

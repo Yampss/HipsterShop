@@ -161,6 +161,15 @@ func (fe *frontendServer) homeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (fe *frontendServer) architectureHandler(w http.ResponseWriter, r *http.Request) {
+	log := r.Context().Value(ctxKeyLog{}).(logrus.FieldLogger)
+	if err := templates.ExecuteTemplate(w, "architecture", injectCommonTemplateData(r, map[string]interface{}{
+		"show_currency": false,
+	})); err != nil {
+		log.Error(err)
+	}
+}
+
 func (plat *platformDetails) setPlatformDetails(env string) {
 	if env == "aws" {
 		plat.provider = "AWS"

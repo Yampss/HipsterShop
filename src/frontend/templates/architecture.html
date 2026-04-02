@@ -1,0 +1,47 @@
+{{ define "architecture" }}
+
+{{ template "header" . }}
+
+<main role="main" class="architecture-page">
+  <div class="container py-5">
+    <div class="row">
+      <div class="col-12">
+        <h2 class="architecture-title">Architecture Details</h2>
+        <p class="architecture-subtitle">System views covering application, Kubernetes, and data architecture.</p>
+      </div>
+    </div>
+
+    <div class="row architecture-grid">
+      <div class="col-12 mb-4">
+        <div class="architecture-card">
+          <h4>Application Architecture</h4>
+          <img loading="lazy" src="{{ $.baseUrl }}/resources/Application-Architecture.png" alt="Application architecture diagram">
+        </div>
+      </div>
+
+      <div class="col-12 mb-4">
+        <div class="architecture-card">
+          <h4>Kubernetes Architecture</h4>
+          <img loading="lazy" src="{{ $.baseUrl }}/resources/k8-architecture.png" alt="Kubernetes architecture diagram">
+        </div>
+      </div>
+
+      <div class="col-12 mb-4">
+        <div class="architecture-card">
+          <h4>Database Architecture</h4>
+          <img loading="lazy" src="{{ $.baseUrl }}/resources/DBarchitecture.png" alt="Database architecture diagram">
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-12 text-center mt-2 mb-4">
+        <a href="{{ $.baseUrl }}/resources/finalppt.pptx" class="btn architecture-download-btn" download>Download Architecture PPT</a>
+      </div>
+    </div>
+  </div>
+</main>
+
+{{ template "footer" . }}
+
+{{ end }}
