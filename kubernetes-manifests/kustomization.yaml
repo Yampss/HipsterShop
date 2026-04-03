@@ -3,6 +3,7 @@ kind: Kustomization
 namespace: hipster
 resources:
  - base/namespace.yaml
+ - network/db-network-policy.yaml
  - base/secrets.yaml
  - base/configmaps.yaml
  - database/secrets.yaml
