@@ -72,6 +72,45 @@ def send_order_confirmation():
       except Exception as exc:
         logger.warning(f'Failed to persist email event: {exc}')
 
+    smtp_host = os.environ.get('SMTP_HOST')
+    smtp_port = os.environ.get('SMTP_PORT', '587')
+    smtp_user = os.environ.get('SMTP_USER')
+    smtp_password = os.environ.get('SMTP_PASSWORD')
+
+    if smtp_host:
+      try:
+        import smtplib
+        from email.message import EmailMessage
+        
+        html_content = template.render(order=order)
+        msg = EmailMessage()
+        msg.set_content(f"Order {order_id} confirmation.")
+        msg.add_alternative(html_content, subtype='html')
+        msg['Subject'] = f'Order Confirmation: {order_id}'
+        msg['From'] = smtp_user or 'noreply@hipstershop.com'
+        msg['To'] = email
+
+        with smtplib.SMTP(smtp_host, int(smtp_port)) as server:
+          if smtp_port in ['587', '465']:
+             server.starttls()
+          if smtp_user and smtp_password:
+             server.login(smtp_user, smtp_password)
+          server.send_message(msg)
+        logger.info(f"Email successfully sent to {email}")
+
+        if email_events_collection is not None:
+            email_events_collection.update_one(
+                {'orderId': order_id, 'email': email},
+                {'$set': {'status': 'sent'}}
+            )
+      except Exception as exc:
+        logger.error(f"Failed to send email to {email}: {exc}")
+        if email_events_collection is not None:
+            email_events_collection.update_one(
+                {'orderId': order_id, 'email': email},
+                {'$set': {'status': 'failed', 'error': str(exc)}}
+            )
+
     return jsonify({})
 
 @app.route('/_healthz', methods=['GET'])
