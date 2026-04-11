@@ -22,7 +22,7 @@ global:
     paymentservice:         cazzzzz/trf-paymentservice-hipster:latest
     productcatalogservice:  cazzzzz/trf-productcatalogservice-hipster:v1
     recommendationservice:  cazzzzz/trf-recommendationservice-hipster:latest
-    shippingservice:        cazzzzz/trf-shippingservice-hipster:latest
+    shippingservice:        aasiks/hipstershop:shipping
     mongodb:                mongo:7.0
     loadgenerator:          busybox:1.28
 

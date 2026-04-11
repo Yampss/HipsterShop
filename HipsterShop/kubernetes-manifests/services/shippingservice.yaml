@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
       - name: server
-        image: cazzzzz/trf-shippingservice-hipster:latest
+        image: aasiks/hipstershop:shipping 
         ports:
         - containerPort: 50051
         envFrom:
