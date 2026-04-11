@@ -185,6 +185,63 @@
                 "care": "Dishwasher safe. Microwave safe.",
                 "notes": "Thick walls keep drinks warm longer. Lead-free glaze. Great for coffee, tea, or hot chocolate."
             }
+        },
+        {
+            "id": "NEWPRODREC01",
+            "name": "Vintage Record Player",
+            "description": "A stunning wooden record player with built-in minimalist speakers.",
+            "picture": "/static/img/products/record-player.png",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 150,
+                "nanos": 0
+            },
+            "categories": ["electronics", "decor"],
+            "details": {
+                "material": "Walnut wood, brushed aluminum",
+                "colors": ["Walnut"],
+                "features": "Built-in Bluetooth, Vinyl to MP3 encoding",
+                "care": "Dust gently with a microfiber cloth.",
+                "notes": "Includes premium stylus needle."
+            }
+        },
+        {
+            "id": "NEWPRODKEY02",
+            "name": "Mechanical Keyboard",
+            "description": "A sleek modern mechanical keyboard featuring pastel keycaps and tactile switches.",
+            "picture": "/static/img/products/mechanical-keyboard.png",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 89,
+                "nanos": 990000000
+            },
+            "categories": ["electronics", "accessories"],
+            "details": {
+                "material": "Polycarbonate housing, PBT keycaps",
+                "colors": ["Pastel / White"],
+                "switches": "Tactile Quiet",
+                "care": "Use keycap puller to clean underneath keys.",
+                "layout": "75% compact"
+            }
+        },
+        {
+            "id": "NEWPRODCOF03",
+            "name": "Artisan Coffee Beans",
+            "description": "Premium roasted coffee beans in a sleek matte black bag for the perfect morning brew.",
+            "picture": "/static/img/products/coffee-beans.png",
+            "priceUsd": {
+                "currencyCode": "USD",
+                "units": 22,
+                "nanos": 500000000
+            },
+            "categories": ["kitchen", "food"],
+            "details": {
+                "origin": "Colombia, Single Estate",
+                "roast": "Medium Roast",
+                "tasting_notes": "Chocolate, Caramel, Orange Zest",
+                "weight": "12 oz (340g)",
+                "care": "Store in a cool, dark place."
+            }
         }
     ]
 }

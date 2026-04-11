@@ -90,7 +90,20 @@ public final class AdService {
     try {
       InputStream is = exchange.getRequestBody();
       String body = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-      AdRequest req = mapper.readValue(body, AdRequest.class);
+
+      if (body == null || body.trim().isEmpty()) {
+        sendResponse(exchange, 400, "{\"error\": \"Empty request body\"}");
+        return;
+      }
+
+      AdRequest req;
+      try {
+        req = mapper.readValue(body, AdRequest.class);
+      } catch (Exception e) {
+        logger.error("Invalid JSON input", e);
+        sendResponse(exchange, 400, "{\"error\": \"Invalid JSON payload\"}");
+        return;
+      }
 
       List<Ad> allAds = new ArrayList<>();
       logger.info("received ad request (context_words=" + (req.context_keys != null ? req.context_keys : "[]") + ")");
@@ -148,9 +161,10 @@ public final class AdService {
 
   private List<Ad> getRandomAds() {
     List<Ad> ads = new ArrayList<>(MAX_ADS_TO_SERVE);
-    Collection<Ad> allAds = adsMap.values();
-    for (int i = 0; i < MAX_ADS_TO_SERVE; i++) {
-      ads.add(Iterables.get(allAds, random.nextInt(allAds.size())));
+    List<Ad> allAds = new ArrayList<>(adsMap.values());
+    for (int i = 0; i < MAX_ADS_TO_SERVE && !allAds.isEmpty(); i++) {
+      int index = random.nextInt(allAds.size());
+      ads.add(allAds.remove(index));
     }
     return ads;
   }
