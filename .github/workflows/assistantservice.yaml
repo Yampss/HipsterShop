@@ -23,7 +23,7 @@ jobs:
       service_name: assistantservice
       service_path: src/assistantservice
       runtime: python
-      python-version: "3.11"
+      python-version: "3.10"
     secrets:
       SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

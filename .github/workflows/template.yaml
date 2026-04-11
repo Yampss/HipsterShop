@@ -32,7 +32,10 @@ on:
         required: false
         type: string
         default: "8.0"
-    
+      java-build-tool:
+        required: false
+        type: string
+        default: "maven"
     
     
     secrets:
@@ -71,7 +74,7 @@ jobs:
         with:
           distribution: "temurin"
           java-version: ${{ inputs.java-version }}
-          cache: "maven"
+          cache: ${{ inputs.java-build-tool }}
       - name: Setup .NET
         if: inputs.runtime == 'dotnet'
         uses: actions/setup-dotnet@v4
@@ -95,9 +98,13 @@ jobs:
         if: inputs.runtime == 'go'
         run: go build ./...
 
-      - name: build java
-        if: inputs.runtime == 'java'
+      - name: build java (Maven)
+        if: inputs.runtime == 'java' && inputs.java-build-tool == 'maven'
         run: mvn -B package --no-transfer-progress
+
+      - name: build java (Gradle)
+        if: inputs.runtime == 'java' && inputs.java-build-tool == 'gradle'
+        run: ./gradlew build -x test
         
 
       - name: Build .NET
@@ -120,9 +127,13 @@ jobs:
         if: inputs.runtime == 'go'
         run: go test ./... -v
 
-      - name: Test Java 
-        if: inputs.runtime == 'java'
+      - name: Test Java (Maven)
+        if: inputs.runtime == 'java' && inputs.java-build-tool == 'maven'
         run: mvn -B test --no-transfer-progress
+
+      - name: Test Java (Gradle)
+        if: inputs.runtime == 'java' && inputs.java-build-tool == 'gradle'
+        run: ./gradlew test
 
       - name: Test .NET
         if: inputs.runtime == 'dotnet'
@@ -178,9 +189,15 @@ jobs:
         if: inputs.runtime == 'go'
         run: snyk-to-html -i snyk-report.json -o snyk-report.html
 
-      - name: Snyk scan (Java / Gradle)
-        if: inputs.runtime == 'java'
+      - name: Snyk scan (Java - Maven)
+        if: inputs.runtime == 'java' && inputs.java-build-tool == 'maven'
         run: snyk test --file=pom.xml --severity-threshold=high --json-file-output=snyk-report.json || true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Snyk scan (Java - Gradle)
+        if: inputs.runtime == 'java' && inputs.java-build-tool == 'gradle'
+        run: snyk test --file=build.gradle --severity-threshold=high --json-file-output=snyk-report.json || true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 

@@ -24,6 +24,7 @@ jobs:
       service_path: src/adservice
       runtime: java
       java-version: "21"
+      java-build-tool: "gradle"
     secrets:
       SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
