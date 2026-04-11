@@ -60,7 +60,10 @@ data:
   COLLECTOR_SERVICE_ADDR: "jaeger:4317"
   FRONTEND_MESSAGE: "Checkout HipsterShop today!"
   ENABLE_ASSISTANT: "true"
-
+  SMTP_HOST: "smtp.gmail.com"
+  SMTP_PORT: "587"
+  SMTP_USER: "jayabaaskarb@gmail.com"
+  SMTP_PASSWORD: "12345678"
 ---
 apiVersion: v1
 kind: ConfigMap

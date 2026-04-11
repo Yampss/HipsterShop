@@ -28,8 +28,8 @@ spec:
   # changes or you have multiple HAProxy nodes, switch to 172.31.0.0/16 (full VPC).
   - from:
     - ipBlock:
-        cidr: 172.31.77.99/32   # HAProxy private IP — change if needed
-        # cidr: 172.31.0.0/16   # uncomment this (and remove line above) to allow full VPC
+        # cidr: 172.31.77.99/32   # HAProxy private IP — change if needed
+        cidr: 172.31.0.0/16   # uncomment this (and remove line above) to allow full VPC 
   # Allow from hipster-frontend (frontend -> gateway)
   - from:
     - namespaceSelector:
@@ -58,7 +58,7 @@ spec:
   - to:
     - namespaceSelector:
         matchLabels:
-          kubernetes.io/metadata.name: gloo-system
+          kubernetes.io/metadata.name: kgateway-system
   # Allow to kube-apiserver (kgateway controller watches K8s resources)
   - to:
     - namespaceSelector:

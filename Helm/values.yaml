@@ -17,7 +17,7 @@ global:
     cartservice:            cazzzzz/trf-cartservice-hipster:v1
     checkoutservice:        cazzzzz/trf-checkoutservice-hipster:latest
     currencyservice:        cazzzzz/trf-currencyservice-hipster:latest
-    emailservice:           cazzzzz/trf-emailservice-hipster:latest
+    emailservice:           savitxr/emailservice-hipster:latest
     frontend:               cazzzzz/trf-frontend-hipster:v2
     paymentservice:         cazzzzz/trf-paymentservice-hipster:latest
     productcatalogservice:  cazzzzz/trf-productcatalogservice-hipster:v1
@@ -40,7 +40,7 @@ global:
     productcatalogservice: 2
     recommendationservice: 2
     shippingservice:       2
-    loadgenerator:         3
+    loadgenerator:         0
 
   # ── Rolling Update Strategy ─────────────────────────────────────
   rollingUpdate:
