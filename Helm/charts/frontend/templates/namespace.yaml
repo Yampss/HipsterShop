@@ -4,3 +4,8 @@ metadata:
   name: {{ .Values.global.namespaces.frontend }}
   labels:
     name: {{ .Values.global.namespaces.frontend }}
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    meta.helm.sh/release-name: frontend
+    meta.helm.sh/release-namespace: {{ .Release.Namespace }}
+    helm.sh/resource-policy: keep

@@ -1,35 +1,20 @@
 # ═══════════════════════════════════════════════════════════════════════════
-#  HipsterShop — Umbrella Chart Values
-#  Single source of truth for all 16 sub-charts.
+#  HipsterShop — Shared Values File
+#  Used by every sub-chart via:  helm install <name> ./Helm/charts/<name> -f ./Helm/values.yaml
 #
-#  Sub-charts read from the global: block automatically via Helm's
-#  global value propagation mechanism — no per-chart overrides needed.
-#
-#  Per-chart enable/disable toggles live at the bottom under charts:
-#  Usage:
-#    # Install everything (default)
-#    helm upgrade --install hipstershop ./Helm
-#
-#    # Disable a specific chart
-#    helm upgrade --install hipstershop ./Helm \
-#      --set charts.loadgenerator.enabled=false
-#
-#    # Disable an entire tier with tags
-#    helm upgrade --install hipstershop ./Helm \
-#      --set tags.backend=false
+#  Each chart reads from the global: block.
+#  Run `./Helm/install.sh` to install all services with a single command.
 # ═══════════════════════════════════════════════════════════════════════════
 
 global:
 
   # ── Namespace Isolation ──────────────────────────────────────────────────
-  # Three isolated namespaces — each has its own NetworkPolicy.
   namespaces:
     frontend: hipster-frontend
     backend:  hipster-backend
     database: hipster-database
 
   # ── Container Images ─────────────────────────────────────────────────────
-  # Override any image tag here without touching templates.
   images:
     adservice:             cazzzzz/trf-adservice-hipster:latest
     assistantservice:      cazzzzz/trf-assistantservice-hipster:latest
@@ -47,20 +32,23 @@ global:
     loadgenerator:         busybox:1.28
 
   # ── Replica Counts ────────────────────────────────────────────────────────
+  # All services run 1 replica; MongoDB keeps 3 (replica set requirement).
   replicas:
-    adservice:             2
-    assistantservice:      2
-    authservice:           2
-    cartservice:           2
-    checkoutservice:       2
-    currencyservice:       2
-    emailservice:          2
-    frontend:              2
-    paymentservice:        2
-    productcatalogservice: 2
-    recommendationservice: 2
-    shippingservice:       2
-    loadgenerator:         3
+    adservice:             1
+    assistantservice:      1
+    authservice:           1
+    cartservice:           1
+    checkoutservice:       1
+    currencyservice:       1
+    emailservice:          1
+    frontend:              1
+    paymentservice:        1
+    productcatalogservice: 1
+    recommendationservice: 1
+    shippingservice:       1
+    loadgenerator:         1
+    # MongoDB replica set – do NOT set below 3 (breaks rs0 quorum)
+    mongodb:               3
 
   # ── Rolling Update Strategy ───────────────────────────────────────────────
   rollingUpdate:
@@ -84,7 +72,6 @@ global:
     assistantservice:      8080
 
   # ── Secrets ──────────────────────────────────────────────────────────────
-  # Replace geminiApiKey with a real key before deploying.
   secrets:
     jwtSecret:    "team4hipstershopsecret"
     geminiApiKey: "REPLACE_WITH_GEMINI_API_KEY"
@@ -98,7 +85,6 @@ global:
     initDatabase:   shopdb
     rootUsername:   admin
     rootPassword:   mongopassword
-    # Per-service MongoDB users and databases
     users:
       auth:
         username: auth_user
@@ -160,8 +146,6 @@ global:
     port:             80
 
   # ── Network Policy ────────────────────────────────────────────────────────
-  # Controls ingress CIDR for the HAProxy reverse-proxy and the kgateway
-  # control-plane namespace. Update vpcCidr to a /32 for a single host.
   networkPolicy:
     vpcCidr:           "172.31.0.0/16"
     kgatewayNamespace: "kgateway-system"
@@ -169,7 +153,7 @@ global:
   # ── Horizontal Pod Autoscaler ─────────────────────────────────────────────
   hpa:
     frontend:
-      minReplicas:       2
+      minReplicas:       1
       maxReplicas:       5
       cpuUtilization:    70
       memoryUtilization: 80
@@ -220,74 +204,3 @@ global:
       limits:
         cpu:    500m
         memory: 512Mi
-
-# ═══════════════════════════════════════════════════════════════════════════
-#  Per-chart Enable / Disable Toggles
-#  ─────────────────────────────────
-#  Set any chart's enabled flag to false to skip it during install/upgrade.
-#  These map directly to the `condition:` fields in Chart.yaml.
-#
-#  Examples:
-#    --set charts.loadgenerator.enabled=false   # skip load generator
-#    --set charts.assistantservice.enabled=false # skip Gemini assistant
-#
-#  Tag-level toggles (disable an entire tier):
-#    --set tags.backend=false       # skip all backend microservices
-#    --set tags.frontend=false      # skip frontend + loadgenerator
-#    --set tags.infrastructure=false # skip backend-common + mongodb
-#    --set tags.gateway=false       # skip gateway + routes
-# ═══════════════════════════════════════════════════════════════════════════
-
-charts:
-
-  # ── Infrastructure tier ──────────────────────────────────────────────────
-  backend-common:
-    enabled: true   # Namespaces, ConfigMaps, Secrets, backend NetworkPolicy
-
-  mongodb:
-    enabled: true   # StatefulSet (3-replica rs0), init/seed Jobs, DB NetworkPolicy
-
-  # ── Frontend tier ────────────────────────────────────────────────────────
-  frontend:
-    enabled: true   # Deployment, Service, HPA, ConfigMaps, frontend NetworkPolicy
-
-  loadgenerator:
-    enabled: true   # Synthetic traffic generator (disable in production)
-
-  # ── Gateway tier ─────────────────────────────────────────────────────────
-  gateway:
-    enabled: true   # GatewayClass, Gateway, all HTTPRoutes
-
-  # ── Backend microservices ─────────────────────────────────────────────────
-  adservice:
-    enabled: true
-
-  assistantservice:
-    enabled: true   # Requires a valid geminiApiKey in global.secrets
-
-  authservice:
-    enabled: true
-
-  cartservice:
-    enabled: true
-
-  checkoutservice:
-    enabled: true
-
-  currencyservice:
-    enabled: true
-
-  emailservice:
-    enabled: true
-
-  paymentservice:
-    enabled: true
-
-  productcatalogservice:
-    enabled: true
-
-  recommendationservice:
-    enabled: true
-
-  shippingservice:
-    enabled: true
