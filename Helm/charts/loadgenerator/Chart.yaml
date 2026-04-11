@@ -1,5 +1,0 @@
-apiVersion: v2
-name: loadgenerator
-description: Load generator sub-chart
-type: application
-version: 1.0.0

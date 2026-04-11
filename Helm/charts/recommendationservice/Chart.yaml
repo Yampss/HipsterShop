@@ -1,5 +1,0 @@
-apiVersion: v2
-name: recommendationservice
-description: Recommendation service sub-chart
-type: application
-version: 1.0.0

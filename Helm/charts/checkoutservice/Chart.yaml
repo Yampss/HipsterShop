@@ -1,5 +1,0 @@
-apiVersion: v2
-name: checkoutservice
-description: Checkout service sub-chart
-type: application
-version: 1.0.0

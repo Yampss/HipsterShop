@@ -1,5 +1,0 @@
-apiVersion: v2
-name: gateway
-description: Gateway and HTTPRoutes sub-chart
-type: application
-version: 1.0.0

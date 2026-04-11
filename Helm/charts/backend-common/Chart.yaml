@@ -1,5 +1,0 @@
-apiVersion: v2
-name: backend-common
-description: Shared backend resources (namespace, configmaps, secrets, network policy)
-type: application
-version: 1.0.0

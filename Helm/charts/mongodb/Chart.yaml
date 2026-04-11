@@ -1,5 +1,0 @@
-apiVersion: v2
-name: mongodb
-description: MongoDB database sub-chart
-type: application
-version: 1.0.0
