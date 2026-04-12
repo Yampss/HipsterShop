@@ -157,7 +157,7 @@ jobs:
       - name: Test (.NET)
         if: inputs.runtime == 'dotnet'
         run: dotnet test $(ls *.csproj | head -1) --no-build --configuration Release --verbosity normal
-        
+
       - name: Lint (Node — depcheck)
         if: inputs.runtime == 'node'
         run: npx depcheck || true
@@ -301,7 +301,7 @@ jobs:
           api-key: ${{ secrets.SENDGRID_API_KEY }}
           subject: "CI ${{ job.status }} - ${{ inputs.service_name }} (${{ github.sha }})"
           from-email: chrissattasseril16@gmail.com
-          to-email: 307401@ust.com
+          to-email: chrissattasseril16@gmail.com
           markdown-body: |
             ## CI Pipeline ${{ job.status }}
 
