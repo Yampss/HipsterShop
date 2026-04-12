@@ -54,6 +54,11 @@ jobs:
         working-directory: ${{ inputs.service_path }}
     steps:
       - uses: actions/checkout@v6
+      
+      - name: Fix file permissions (Gradle)
+        if: inputs.runtime == 'java' && inputs.java-build-tool == 'gradle'
+        run: chmod +x gradle/wrapper/gradle-wrapper.jar gradlew
+      
       - name: nodejs setup
         if: inputs.runtime == 'node'
         uses: actions/setup-node@v4
@@ -84,7 +89,12 @@ jobs:
 
       - name: node dependencies
         if: inputs.runtime == 'node'
-        run: npm ci
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
 
       - name: python dependencies
         if: inputs.runtime == 'python'
@@ -229,5 +239,5 @@ jobs:
           projectBaseDir: ${{ inputs.service_path }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: "${{ secrets.SONAR_TOKEN }}:9000"  
+          SONAR_HOST_URL: "http://34.201.100.11:9000/"  
 
