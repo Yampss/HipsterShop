@@ -246,23 +246,21 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: "http://34.201.100.11:9000/"  
     
-      - name: Send Email on Failure
+      - name: Send Email via SendGrid
         if: failure()
-        uses: dawidd6/action-send-mail@v6
+        uses: licenseware/send-email-notification@v1
         with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          secure: true
-          username: ${{ secrets.EMAIL_USERNAME }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
+          api-key: ${{ secrets.SENDGRID_API_KEY }}
           subject: "CI Failed - ${{ inputs.service_name }}"
-          to: 307401@ust.com
-          from: GitHub CI
-          body: |
-            Service: ${{ inputs.service_name }}
-            Commit: ${{ github.event.head_commit.message }}
-            Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          from-email: chrissattasseril16@gmail.com
+          to-email: 307401@ust.com
+          markdown-body: |
+            ## CI Failed
 
+            **Service:** ${{ inputs.service_name }}  
+            **Commit:** ${{ github.event.head_commit.message }}  
+            **SHA:** ${{ github.sha }}  
+            **Actor:** ${{ github.actor }}
 
+            [View Logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
-#dummy
