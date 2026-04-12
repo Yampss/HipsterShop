@@ -75,7 +75,7 @@ jobs:
         with: 
           node-version: ${{ inputs.node-version }}
           cache: npm
-          cache-dependency-path: "${{ inputs.service_path }}/package-lock.json"
+          cache-dependency-path: "${{ inputs.service_path }}/package.json"
       - name: python setup 
         if: inputs.runtime == 'python'
         uses: actions/setup-python@v5
@@ -99,12 +99,7 @@ jobs:
 
       - name: node dependencies
         if: inputs.runtime == 'node'
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
-          fi
+        run: npm install
 
       - name: python dependencies
         if: inputs.runtime == 'python'
@@ -126,6 +121,10 @@ jobs:
         if: inputs.runtime == 'java' && inputs.java-build-tool == 'gradle'
         run: ./gradlew build -x test
         
+
+      - name: Restore .NET dependencies
+        if: inputs.runtime == 'dotnet'
+        run: dotnet restore
 
       - name: Build .NET
         if: inputs.runtime == 'dotnet'
