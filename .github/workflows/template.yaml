@@ -252,21 +252,39 @@ jobs:
             -Dsonar.projectName=${{ inputs.service_name }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'http://sonarqube:9000' }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      - name: Check Docker Hub credentials
+        id: docker_check
+        run: |
+          if [ -n "${{ secrets.DOCKERHUB_USERNAME }}" ] && [ -n "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
+            echo "has_credentials=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_credentials=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check SendGrid credentials
+        id: email_check
+        run: |
+          if [ -n "${{ secrets.SENDGRID_API_KEY }}" ]; then
+            echo "has_credentials=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_credentials=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Set up Docker Buildx
-        if: success() && secrets.DOCKERHUB_USERNAME != ''
+        if: success() && steps.docker_check.outputs.has_credentials == 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub
-        if: success() && secrets.DOCKERHUB_USERNAME != ''
+        if: success() && steps.docker_check.outputs.has_credentials == 'true'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Extract metadata
-        if: success() && secrets.DOCKERHUB_USERNAME != ''
+        if: success() && steps.docker_check.outputs.has_credentials == 'true'
         id: meta
         run: |
           SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
@@ -275,7 +293,7 @@ jobs:
           echo "image_latest=${{ secrets.DOCKERHUB_USERNAME }}/hipstershop-${{ inputs.service_name }}:latest" >> $GITHUB_OUTPUT
 
       - name: Build and push Docker image
-        if: success() && secrets.DOCKERHUB_USERNAME != ''
+        if: success() && steps.docker_check.outputs.has_credentials == 'true'
         uses: docker/build-push-action@v6
         with:
           context: ${{ inputs.service_path }}
@@ -285,8 +303,9 @@ jobs:
             ${{ steps.meta.outputs.image_latest }}
           cache-from: type=registry,ref=${{ steps.meta.outputs.image_latest }}
           cache-to: type=inline  
+
       - name: Send Email Notification
-        if: always() && secrets.SENDGRID_API_KEY != ''
+        if: always() && steps.email_check.outputs.has_credentials == 'true'
         uses: licenseware/send-email-notification@v1
         with:
           api-key: ${{ secrets.SENDGRID_API_KEY }}
@@ -301,7 +320,7 @@ jobs:
             **SHA:** ${{ github.sha }}  
             **Actor:** ${{ github.actor }}  
             **Status:** ${{ job.status }}
-            ${{ secrets.DOCKERHUB_USERNAME != '' && format('**Docker Image:** {0}/hipstershop-{1}:{2}', secrets.DOCKERHUB_USERNAME, inputs.service_name, github.sha) || '' }}
+            ${{ steps.docker_check.outputs.has_credentials == 'true' && format('**Docker Image:** {0}/hipstershop-{1}:{2}', secrets.DOCKERHUB_USERNAME, inputs.service_name, github.sha) || '' }}
 
             [View Logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
