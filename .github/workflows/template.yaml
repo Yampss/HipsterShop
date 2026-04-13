@@ -81,7 +81,7 @@ jobs:
   snyk:
     name: snyk
     runs-on: ubuntu-latest
-    needs: build
+    needs: sonarqube
     defaults:
       run:
         working-directory: ${{ inputs.service_path }}
