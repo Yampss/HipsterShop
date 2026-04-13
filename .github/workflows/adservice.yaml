@@ -3,14 +3,14 @@ name: adservice CI
 on:
   push:
     branches:
-      - feature/ci
+      - feature/semantic-versions
     paths:
       - 'src/adservice/**'
       - '.github/workflows/adservice.yaml'
       - '.github/workflows/template.yaml'
   pull_request:
     branches:
-      - feature/ci
+      - feature/semantic-versions
     paths:
       - 'src/adservice/**'
       - '.github/workflows/adservice.yaml'
