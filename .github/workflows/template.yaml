@@ -309,6 +309,7 @@ jobs:
   #   if: |
   #     needs.generate-tag.outputs.image_exists != 'true'
   build-image:
+    runs-on: ubuntu-latest
     name: build image
     needs: [generate-tag]
     if: |
@@ -350,6 +351,7 @@ jobs:
     # if: |
     #   (inputs.github_event_name == 'push' || inputs.github_event_name == 'merge')
   trivy:
+    runs-on: ubuntu-latest
     needs: [build-image, generate-tag]
     if: |
       always() &&
@@ -386,6 +388,7 @@ jobs:
   #   needs: [build-image, trivy, generate-tag]
   #   # if: inputs.github_event_name == 'push'
   push:
+    runs-on: ubuntu-latest
     needs: [build-image, trivy, generate-tag]
     if: |
       always() &&
