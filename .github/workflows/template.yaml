@@ -212,6 +212,7 @@ jobs:
   generate-tag:
     name: generate tag
     runs-on: ubuntu-latest
+    needs: [snyk] 
     # # if: inputs.github_event_name == 'push'
     # if: |
     #   (inputs.github_event_name == 'pull_request' || inputs.github_event_name == 'merge')
