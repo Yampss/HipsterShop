@@ -212,7 +212,10 @@ jobs:
   generate-tag:
     name: generate tag
     runs-on: ubuntu-latest
-    if: inputs.github_event_name == 'push'
+    needs: [snyk] 
+    # # if: inputs.github_event_name == 'push'
+    # if: |
+    #   (inputs.github_event_name == 'pull_request' || inputs.github_event_name == 'merge')
     outputs:
       tag:          ${{ steps.tag.outputs.tag }}
       tag_exists:   ${{ steps.tag_check.outputs.exists }}
@@ -293,13 +296,12 @@ jobs:
           fi
 
 
-
+# inputs.github_event_name == 'push' &&
   build-image:
     name: build image
     runs-on: ubuntu-latest
     needs: [generate-tag]
     if: |
-      inputs.github_event_name == 'push' &&
       needs.generate-tag.outputs.image_exists != 'true'
     steps:
       - uses: actions/checkout@v4
@@ -332,7 +334,9 @@ jobs:
     name: trivy
     runs-on: ubuntu-latest
     needs: [build-image, generate-tag]
-    if: inputs.github_event_name == 'push'
+    # if: inputs.github_event_name == 'push'
+    # if: |
+    #   (inputs.github_event_name == 'push' || inputs.github_event_name == 'merge')
     steps:
 
       - name: Extract image tags
@@ -363,7 +367,7 @@ jobs:
     name: push
     runs-on: ubuntu-latest
     needs: [build-image, trivy, generate-tag]
-    if: inputs.github_event_name == 'push'
+    # if: inputs.github_event_name == 'push'
     steps:
       - uses: actions/checkout@v4
         with:
