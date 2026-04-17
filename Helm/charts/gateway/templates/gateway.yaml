@@ -1,10 +1,25 @@
+{{- /*
+  GatewayClass is a cluster-scoped resource. kgateway controller typically
+  creates it on its own installation. We use `lookup` to check if it already
+  exists — if it does we skip creating it to avoid a Helm ownership conflict.
+  If it does not exist (fresh cluster), we create it with the `keep` policy
+  so it is never deleted when this chart is uninstalled.
+*/ -}}
+{{- if not (lookup "gateway.networking.k8s.io/v1" "GatewayClass" "" .Values.global.gateway.gatewayClassName) }}
 apiVersion: gateway.networking.k8s.io/v1
 kind: GatewayClass
 metadata:
   name: {{ .Values.global.gateway.gatewayClassName }}
+  labels:
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    meta.helm.sh/release-name: gateway
+    meta.helm.sh/release-namespace: {{ .Release.Namespace }}
+    helm.sh/resource-policy: keep
 spec:
   controllerName: kgateway.dev/kgateway
 ---
+{{- end }}
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
@@ -12,6 +27,10 @@ metadata:
   name: {{ .Values.global.gateway.name }}
   labels:
     app: hipstershop
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    meta.helm.sh/release-name: gateway
+    meta.helm.sh/release-namespace: {{ .Release.Namespace }}
 spec:
   gatewayClassName: {{ .Values.global.gateway.gatewayClassName }}
   listeners:
@@ -20,4 +39,4 @@ spec:
       port: {{ .Values.global.gateway.port }}
       allowedRoutes:
         namespaces:
-          from: Same
+          from: All

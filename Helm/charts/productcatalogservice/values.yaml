@@ -1,0 +1,29 @@
+# ─────────────────────────────────────────────────────────────
+#  productcatalogservice — self-contained values
+# ─────────────────────────────────────────────────────────────
+
+global:
+  namespaces:
+    backend: hipster-backend
+
+  images:
+    productcatalogservice: "cazzzzz/hipstershop-productcatalogservice:latest"   # CI overwrites the tag
+
+  replicas:
+    productcatalogservice: 1
+
+  rollingUpdate:
+    maxUnavailable: 1
+    maxSurge: 1
+
+  ports:
+    productcatalogservice: 3550
+
+  resources:
+    standard:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi

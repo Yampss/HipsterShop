@@ -1,0 +1,56 @@
+# ─────────────────────────────────────────────────────────────
+#  mongodb — self-contained values
+#  StatefulSet with 3-node replica set on NFS storage.
+#  Stays in the HipsterShop monorepo — stateful infra.
+#  IMPORTANT: Replace passwords before committing to any
+#  public repo. Use Sealed Secrets / AWS Secrets Manager.
+# ─────────────────────────────────────────────────────────────
+
+global:
+  namespaces:
+    database: hipster-database
+    backend:  hipster-backend
+
+  images:
+    mongodb: mongo:7.0
+
+  mongodb:
+    replicas:       3
+    storageClass:   nfs
+    storageSize:    5Gi
+    replicaSetName: rs0
+    initDatabase:   shopdb
+    rootUsername:   admin
+    rootPassword:   mongopassword
+    users:
+      auth:
+        username: auth_user
+        password: auth_password
+        database: auth_db
+      cart:
+        username: cart_user
+        password: cart_password
+        database: cart_db
+      catalog:
+        username: catalog_user
+        password: catalog_password
+        database: catalog_db
+      order:
+        username: order_user
+        password: order_password
+        database: order_db
+      payment:
+        username: payment_user
+        password: payment_password
+        database: payment_db
+      notification:
+        username: notification_user
+        password: notification_password
+        database: notification_db
+      analytics:
+        username: analytics_user
+        password: analytics_password
+        database: analytics_db
+
+  networkPolicy:
+    vpcCidr: "172.31.0.0/16"

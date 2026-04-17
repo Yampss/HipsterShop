@@ -1,0 +1,30 @@
+# ─────────────────────────────────────────────────────────────
+#  recommendationservice — self-contained values
+#  Note: uses higher memory limits (Python service)
+# ─────────────────────────────────────────────────────────────
+
+global:
+  namespaces:
+    backend: hipster-backend
+
+  images:
+    recommendationservice: "cazzzzz/hipstershop-recommendationservice:latest"   # CI overwrites the tag
+
+  replicas:
+    recommendationservice: 1
+
+  rollingUpdate:
+    maxUnavailable: 1
+    maxSurge: 1
+
+  ports:
+    recommendationservice: 8080
+
+  resources:
+    recommendation:
+      requests:
+        cpu: 100m
+        memory: 220Mi
+      limits:
+        cpu: 200m
+        memory: 450Mi

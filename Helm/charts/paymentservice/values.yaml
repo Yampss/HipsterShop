@@ -1,0 +1,29 @@
+# ─────────────────────────────────────────────────────────────
+#  paymentservice — self-contained values
+# ─────────────────────────────────────────────────────────────
+
+global:
+  namespaces:
+    backend: hipster-backend
+
+  images:
+    paymentservice: "cazzzzz/hipstershop-paymentservice:latest"   # CI overwrites the tag
+
+  replicas:
+    paymentservice: 1
+
+  rollingUpdate:
+    maxUnavailable: 1
+    maxSurge: 1
+
+  ports:
+    paymentservice: 50051
+
+  resources:
+    standard:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi

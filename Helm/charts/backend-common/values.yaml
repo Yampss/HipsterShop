@@ -1,0 +1,103 @@
+# ─────────────────────────────────────────────────────────────
+#  backend-common — self-contained values
+#  Creates: Namespaces, ConfigMaps, Secrets, NetworkPolicies
+#  for the hipster-backend namespace.
+#  Stays in the HipsterShop monorepo — it's cluster-wide infra.
+#  IMPORTANT: Replace jwtSecret and geminiApiKey before committing
+#  to any public repo. Use Sealed Secrets for production.
+# ─────────────────────────────────────────────────────────────
+
+global:
+  namespaces:
+    frontend: hipster-frontend
+    backend:  hipster-backend
+    database: hipster-database
+
+  # ── Secrets (use Sealed Secrets / ESO in production) ────────
+  secrets:
+    jwtSecret:    "team4hipstershopsecret"
+    geminiApiKey: "REPLACE_WITH_GEMINI_API_KEY"
+
+  # ── Application ConfigMap ────────────────────────────────────
+  appConfig:
+    enableTracing:        "1"
+    collectorServiceAddr: "jaeger:4317"
+    frontendMessage:      "Checkout HipsterShop today!"
+    enableAssistant:      "true"
+
+  # ── Feature Flags ConfigMap ──────────────────────────────────
+  features:
+    currencyServiceRandomError:    "1"
+    paymentServiceDisableProfiler: "1"
+    productCatalogSeedDatabase:    "true"
+    geminiModel:                   "gemini-2.5-flash"
+
+  # ── Service Addresses ConfigMap ──────────────────────────────
+  gateway:
+    name: hipstershop-gateway
+    port: 80
+
+  ports:
+    productcatalogservice: 3550
+    shippingservice:       50051
+    paymentservice:        50051
+    emailservice:          8080
+    currencyservice:       7000
+    cartservice:           7070
+
+  # ── Service Ports ConfigMap ──────────────────────────────────
+  # (individual ports for each service's PORT env var)
+    adservice:             9555
+    authservice:           8081
+    checkoutservice:       5050
+    frontend:              8080
+    recommendationservice: 8080
+    assistantservice:      8080
+
+  # ── MongoDB ConfigMap ────────────────────────────────────────
+  mongodb:
+    rootUsername: admin
+    rootPassword: mongopassword
+    users:
+      auth:
+        username: auth_user
+        password: auth_password
+        database: auth_db
+      cart:
+        username: cart_user
+        password: cart_password
+        database: cart_db
+      catalog:
+        username: catalog_user
+        password: catalog_password
+        database: catalog_db
+      order:
+        username: order_user
+        password: order_password
+        database: order_db
+      payment:
+        username: payment_user
+        password: payment_password
+        database: payment_db
+      notification:
+        username: notification_user
+        password: notification_password
+        database: notification_db
+      analytics:
+        username: analytics_user
+        password: analytics_password
+        database: analytics_db
+
+  mongodbConfig:
+    replicaSet:                         rs0
+    catalogProductsCollection:          products
+    orderOrdersCollection:              orders
+    orderEventsCollection:              order_events
+    paymentChargesCollection:           charges
+    analyticsRecommendationsCollection: recommendations
+    notificationEmailEventsCollection:  email_events
+
+  # ── Network Policy ───────────────────────────────────────────
+  networkPolicy:
+    vpcCidr:           "172.31.0.0/16"
+    kgatewayNamespace: "kgateway-system"

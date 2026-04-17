@@ -1,0 +1,29 @@
+# ─────────────────────────────────────────────────────────────
+#  assistantservice — self-contained values
+# ─────────────────────────────────────────────────────────────
+
+global:
+  namespaces:
+    backend: hipster-backend
+
+  images:
+    assistantservice: "cazzzzz/hipstershop-assistantservice:latest"   # CI overwrites the tag
+
+  replicas:
+    assistantservice: 1
+
+  rollingUpdate:
+    maxUnavailable: 1
+    maxSurge: 1
+
+  ports:
+    assistantservice: 8080
+
+  resources:
+    standard:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
