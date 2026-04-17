@@ -1,53 +1,61 @@
-# ═══════════════════════════════════════════════════════════════════
-#  HipsterShop — Global Values (Single source of truth)
-# ═══════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════
+#  HipsterShop — Shared Values File
+#  Used by every sub-chart via:  helm install <name> ./Helm/charts/<name> -f ./Helm/values.yaml
+#
+#  Each chart reads from the global: block.
+#  Run `./Helm/install.sh` to install all services with a single command.
+# ═══════════════════════════════════════════════════════════════════════════
 
 global:
-  # ── Namespace Isolation ──────────────────────────────────────────
+
+  # ── Namespace Isolation ──────────────────────────────────────────────────
   namespaces:
     frontend: hipster-frontend
-    backend: hipster-backend
+    backend:  hipster-backend
     database: hipster-database
 
-  # ── Container Images ────────────────────────────────────────────
+  # ── Container Images ─────────────────────────────────────────────────────
   images:
-    adservice:              cazzzzz/trf-adservice-hipster:latest
-    assistantservice:       cazzzzz/trf-assistantservice-hipster:latest
-    authservice:            cazzzzz/trf-authservice-hipster:latest
-    cartservice:            cazzzzz/trf-cartservice-hipster:v1
-    checkoutservice:        cazzzzz/trf-checkoutservice-hipster:latest
-    currencyservice:        cazzzzz/trf-currencyservice-hipster:latest
-    emailservice:           cazzzzz/trf-emailservice-hipster:latest
-    frontend:               cazzzzz/trf-frontend-hipster:v2
-    paymentservice:         cazzzzz/trf-paymentservice-hipster:latest
-    productcatalogservice:  cazzzzz/trf-productcatalogservice-hipster:v1
-    recommendationservice:  cazzzzz/trf-recommendationservice-hipster:latest
-    shippingservice:        cazzzzz/trf-shippingservice-hipster:latest
-    mongodb:                mongo:7.0
-    loadgenerator:          busybox:1.28
+    adservice:             cazzzzz/trf-adservice-hipster:latest
+    assistantservice:      cazzzzz/trf-assistantservice-hipster:latest
+    authservice:           cazzzzz/trf-authservice-hipster:latest
+    cartservice:           cazzzzz/trf-cartservice-hipster:v1
+    checkoutservice:       cazzzzz/trf-checkoutservice-hipster:latest
+    currencyservice:       cazzzzz/trf-currencyservice-hipster:latest
+    emailservice:          cazzzzz/trf-emailservice-hipster:latest
+    frontend:              cazzzzz/trf-frontend-hipster:v2
+    paymentservice:        cazzzzz/trf-paymentservice-hipster:latest
+    productcatalogservice: cazzzzz/trf-productcatalogservice-hipster:v1
+    recommendationservice: cazzzzz/trf-recommendationservice-hipster:latest
+    shippingservice:       cazzzzz/trf-shippingservice-hipster:latest
+    mongodb:               mongo:7.0
+    loadgenerator:         busybox:1.28
 
-  # ── Replicas ────────────────────────────────────────────────────
+  # ── Replica Counts ────────────────────────────────────────────────────────
+  # All services run 1 replica; MongoDB keeps 3 (replica set requirement).
   replicas:
-    adservice:             2
-    assistantservice:      2
-    authservice:           2
-    cartservice:           2
-    checkoutservice:       2
-    currencyservice:       2
-    emailservice:          2
-    frontend:              2
-    paymentservice:        2
-    productcatalogservice: 2
-    recommendationservice: 2
-    shippingservice:       2
-    loadgenerator:         3
+    adservice:             1
+    assistantservice:      1
+    authservice:           1
+    cartservice:           1
+    checkoutservice:       1
+    currencyservice:       1
+    emailservice:          1
+    frontend:              1
+    paymentservice:        1
+    productcatalogservice: 1
+    recommendationservice: 1
+    shippingservice:       1
+    loadgenerator:         1
+    # MongoDB replica set – do NOT set below 3 (breaks rs0 quorum)
+    mongodb:               3
 
-  # ── Rolling Update Strategy ─────────────────────────────────────
+  # ── Rolling Update Strategy ───────────────────────────────────────────────
   rollingUpdate:
     maxUnavailable: 1
-    maxSurge: 1
+    maxSurge:       1
 
-  # ── Service Ports ───────────────────────────────────────────────
+  # ── Service Ports ────────────────────────────────────────────────────────
   ports:
     adservice:             9555
     authservice:           8081
@@ -63,20 +71,20 @@ global:
     shippingservice:       50051
     assistantservice:      8080
 
-  # ── Secrets ─────────────────────────────────────────────────────
+  # ── Secrets ──────────────────────────────────────────────────────────────
   secrets:
     jwtSecret:    "team4hipstershopsecret"
     geminiApiKey: "REPLACE_WITH_GEMINI_API_KEY"
 
-  # ── MongoDB ─────────────────────────────────────────────────────
+  # ── MongoDB StatefulSet ───────────────────────────────────────────────────
   mongodb:
-    replicas:         3
-    storageClass:     nfs
-    storageSize:      5Gi
-    replicaSetName:   rs0
-    initDatabase:     shopdb
-    rootUsername:     admin
-    rootPassword:     mongopassword
+    replicas:       3
+    storageClass:   nfs
+    storageSize:    5Gi
+    replicaSetName: rs0
+    initDatabase:   shopdb
+    rootUsername:   admin
+    rootPassword:   mongopassword
     users:
       auth:
         username: auth_user
@@ -107,21 +115,21 @@ global:
         password: analytics_password
         database: analytics_db
 
-  # ── App Configuration ───────────────────────────────────────────
+  # ── Application Configuration ─────────────────────────────────────────────
   appConfig:
     enableTracing:        "1"
     collectorServiceAddr: "jaeger:4317"
     frontendMessage:      "Checkout HipsterShop today!"
     enableAssistant:      "true"
 
-  # ── Feature Flags ───────────────────────────────────────────────
+  # ── Feature Flags ─────────────────────────────────────────────────────────
   features:
-    currencyServiceRandomError:      "1"
-    paymentServiceDisableProfiler:   "1"
-    productCatalogSeedDatabase:      "true"
-    geminiModel:                     "gemini-2.5-flash"
+    currencyServiceRandomError:    "1"
+    paymentServiceDisableProfiler: "1"
+    productCatalogSeedDatabase:    "true"
+    geminiModel:                   "gemini-2.5-flash"
 
-  # ── MongoDB Config ──────────────────────────────────────────────
+  # ── MongoDB Collection / Database Names ───────────────────────────────────
   mongodbConfig:
     replicaSet:                         rs0
     catalogProductsCollection:          products
@@ -131,19 +139,24 @@ global:
     analyticsRecommendationsCollection: recommendations
     notificationEmailEventsCollection:  email_events
 
-  # ── Gateway ─────────────────────────────────────────────────────
+  # ── Gateway ───────────────────────────────────────────────────────────────
   gateway:
     name:             hipstershop-gateway
     gatewayClassName: kgateway
     port:             80
 
-  # ── HPA ─────────────────────────────────────────────────────────
+  # ── Network Policy ────────────────────────────────────────────────────────
+  networkPolicy:
+    vpcCidr:           "172.31.0.0/16"
+    kgatewayNamespace: "kgateway-system"
+
+  # ── Horizontal Pod Autoscaler ─────────────────────────────────────────────
   hpa:
     frontend:
-      minReplicas:        2
-      maxReplicas:        5
-      cpuUtilization:     70
-      memoryUtilization:  80
+      minReplicas:       1
+      maxReplicas:       5
+      cpuUtilization:    70
+      memoryUtilization: 80
       scaleDown:
         stabilizationWindowSeconds: 20
         percentValue:               50
@@ -154,7 +167,7 @@ global:
         podsValue:                  2
         periodSeconds:              15
 
-  # ── Resources ───────────────────────────────────────────────────
+  # ── Resource Requests & Limits ────────────────────────────────────────────
   resources:
     standard:
       requests:

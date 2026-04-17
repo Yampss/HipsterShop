@@ -1,0 +1,36 @@
+# ─────────────────────────────────────────────────────────────
+#  checkoutservice — self-contained values
+#  Has MongoDB order DB dependency via init-container connection string
+# ─────────────────────────────────────────────────────────────
+
+global:
+  namespaces:
+    backend:  hipster-backend
+    database: hipster-database
+
+  images:
+    checkoutservice: "cazzzzz/hipstershop-checkoutservice:latest"   # CI overwrites the tag
+
+  replicas:
+    checkoutservice: 1
+
+  rollingUpdate:
+    maxUnavailable: 1
+    maxSurge: 1
+
+  ports:
+    checkoutservice: 5050
+
+  resources:
+    standard:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
+
+  mongodb:
+    users:
+      order:
+        database: order_db

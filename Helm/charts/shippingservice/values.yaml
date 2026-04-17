@@ -1,0 +1,29 @@
+# ─────────────────────────────────────────────────────────────
+#  shippingservice — self-contained values
+# ─────────────────────────────────────────────────────────────
+
+global:
+  namespaces:
+    backend: hipster-backend
+
+  images:
+    shippingservice: "cazzzzz/hipstershop-shippingservice:latest"   # CI overwrites the tag
+
+  replicas:
+    shippingservice: 1
+
+  rollingUpdate:
+    maxUnavailable: 1
+    maxSurge: 1
+
+  ports:
+    shippingservice: 50051
+
+  resources:
+    standard:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi

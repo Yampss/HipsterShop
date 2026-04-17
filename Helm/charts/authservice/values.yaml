@@ -1,0 +1,38 @@
+# ─────────────────────────────────────────────────────────────
+#  authservice — self-contained values
+#  Has MongoDB init-container for primary-readiness check
+#  Also uses JWT secret from existing cluster Secret (app-secrets)
+# ─────────────────────────────────────────────────────────────
+
+global:
+  namespaces:
+    backend:  hipster-backend
+    database: hipster-database
+
+  images:
+    authservice: "cazzzzz/hipstershop-authservice:latest"   # CI overwrites the tag
+    mongodb:     mongo:7.0                                  # used by init-container
+
+  replicas:
+    authservice: 1
+
+  rollingUpdate:
+    maxUnavailable: 1
+    maxSurge: 1
+
+  ports:
+    authservice: 8081
+
+  resources:
+    standard:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
+
+  mongodb:
+    users:
+      auth:
+        database: auth_db

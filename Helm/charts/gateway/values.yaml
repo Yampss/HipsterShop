@@ -1,0 +1,29 @@
+# ─────────────────────────────────────────────────────────────
+#  gateway — self-contained values
+#  Creates: GatewayClass (if not exists), Gateway, all HTTPRoutes
+#  Stays in the HipsterShop monorepo — cross-cutting infra.
+# ─────────────────────────────────────────────────────────────
+
+global:
+  namespaces:
+    backend:  hipster-backend
+    frontend: hipster-frontend
+
+  gateway:
+    name:             hipstershop-gateway
+    gatewayClassName: kgateway
+    port:             80
+
+  ports:
+    adservice:             9555
+    authservice:           8081
+    cartservice:           7070
+    checkoutservice:       5050
+    currencyservice:       7000
+    emailservice:          8080
+    frontend:              8080
+    paymentservice:        50051
+    productcatalogservice: 3550
+    recommendationservice: 8080
+    shippingservice:       50051
+    assistantservice:      8080

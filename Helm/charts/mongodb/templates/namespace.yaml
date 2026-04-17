@@ -4,12 +4,22 @@ metadata:
   name: {{ .Values.global.namespaces.database }}
   labels:
     name: {{ .Values.global.namespaces.database }}
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    meta.helm.sh/release-name: mongodb
+    meta.helm.sh/release-namespace: {{ .Release.Namespace }}
+    helm.sh/resource-policy: keep
 ---
 apiVersion: v1
 kind: Secret
 metadata:
   name: mongodb-root
   namespace: {{ .Values.global.namespaces.database }}
+  labels:
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    meta.helm.sh/release-name: mongodb
+    meta.helm.sh/release-namespace: {{ .Release.Namespace }}
 type: Opaque
 stringData:
   MONGO_ROOT_USERNAME: {{ .Values.global.mongodb.rootUsername | quote }}
@@ -20,6 +30,11 @@ kind: Secret
 metadata:
   name: mongodb-users
   namespace: {{ .Values.global.namespaces.database }}
+  labels:
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    meta.helm.sh/release-name: mongodb
+    meta.helm.sh/release-namespace: {{ .Release.Namespace }}
 type: Opaque
 stringData:
   AUTH_MONGO_USERNAME: {{ .Values.global.mongodb.users.auth.username | quote }}

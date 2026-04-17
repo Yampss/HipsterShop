@@ -1,0 +1,37 @@
+# ─────────────────────────────────────────────────────────────
+#  cartservice — self-contained values
+#  Has MongoDB init-container → needs database namespace + cart user DB
+# ─────────────────────────────────────────────────────────────
+
+global:
+  namespaces:
+    backend:  hipster-backend
+    database: hipster-database
+
+  images:
+    cartservice: "cazzzzz/hipstershop-cartservice:latest"   # CI overwrites the tag
+    mongodb:     mongo:7.0                                  # used by init-container
+
+  replicas:
+    cartservice: 1
+
+  rollingUpdate:
+    maxUnavailable: 1
+    maxSurge: 1
+
+  ports:
+    cartservice: 7070
+
+  resources:
+    cartservice:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 300m
+        memory: 512Mi
+
+  mongodb:
+    users:
+      cart:
+        database: cart_db

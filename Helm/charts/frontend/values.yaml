@@ -1,0 +1,66 @@
+# ─────────────────────────────────────────────────────────────
+#  frontend — self-contained values
+#  Heavier chart: has Deployment, HPA, ConfigMaps, Secrets,
+#  NetworkPolicy, Namespace, and ReferenceGrant templates.
+#  Lives in hipster-frontend namespace.
+# ─────────────────────────────────────────────────────────────
+
+global:
+  namespaces:
+    frontend: hipster-frontend
+    backend:  hipster-backend
+
+  images:
+    frontend: "cazzzzz/hipstershop-frontend:latest"   # CI overwrites the tag
+
+  replicas:
+    frontend: 1
+
+  rollingUpdate:
+    maxUnavailable: 1
+    maxSurge: 1
+
+  ports:
+    frontend:    8080
+    frontendSvc: 80
+
+  resources:
+    standard:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
+
+  # ── HPA ─────────────────────────────────────────────────────
+  hpa:
+    frontend:
+      minReplicas: 1
+      maxReplicas: 5
+      cpuUtilization: 70
+      memoryUtilization: 80
+      scaleDown:
+        stabilizationWindowSeconds: 20
+        percentValue: 50
+        periodSeconds: 15
+      scaleUp:
+        stabilizationWindowSeconds: 5
+        percentValue: 100
+        podsValue: 2
+        periodSeconds: 15
+
+  # ── ConfigMap values (frontend chart duplicates these in its own namespace) ──
+  appConfig:
+    enableTracing:        "1"
+    collectorServiceAddr: "jaeger:4317"
+    frontendMessage:      "Checkout HipsterShop today!"
+    enableAssistant:      "true"
+
+  gateway:
+    name: hipstershop-gateway
+    port: 80
+
+  networkPolicy:
+    vpcCidr:           "172.31.0.0/16"
+    kgatewayNamespace: "kgateway-system"
